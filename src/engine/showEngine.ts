@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 import { WizUdpDriver } from '../drivers/wiz';
 import { TransitionEngine } from './transitions';
 import { MidiInput } from '../midi/input';
-import type { Mapping, MidiEvent, ShowConfig } from './types';
+import type { Group, InventoryFixture, Mapping, MidiEvent, ShowConfig } from './types';
+import * as inventory from './inventory';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = join(__dirname, '..', '..', 'config', 'show.json');
@@ -35,7 +36,12 @@ export class ShowEngine extends EventEmitter {
   async load(): Promise<void> {
     try {
       this.config = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf8'));
-    } catch { /* first run, no config */ }
+    } catch {
+      /* first run, no config */
+    }
+    // Seed the inventory from legacy IP-referencing mappings on first load after the upgrade.
+    if (inventory.migrateLegacyConfig(this.config)) await this.save();
+    this.knownFixtures = inventory.allIps(this.config);
     if (this.config.midiPortName) this.midi.openByName(this.config.midiPortName);
   }
 
@@ -53,6 +59,101 @@ export class ShowEngine extends EventEmitter {
 
   setMappings(mappings: Mapping[]): void {
     this.config.mappings = mappings;
+    void this.save();
+  }
+
+  // ---- fixture inventory (app Phase 3) ----
+
+  getInventory(): { fixtures: InventoryFixture[]; groups: Group[] } {
+    return { fixtures: inventory.fixturesOf(this.config), groups: inventory.groupsOf(this.config) };
+  }
+
+  addFixture(input: {
+    name?: string;
+    ip: string;
+    number?: number;
+    mac?: string;
+  }): InventoryFixture {
+    const fx = inventory.addFixture(this.config, input);
+    this.afterInventoryChange();
+    return fx;
+  }
+
+  updateFixture(
+    id: string,
+    patch: Partial<Pick<InventoryFixture, 'name' | 'ip' | 'number' | 'mac'>>,
+  ): InventoryFixture | null {
+    const fx = inventory.updateFixture(this.config, id, patch);
+    if (fx) this.afterInventoryChange();
+    return fx;
+  }
+
+  removeFixture(id: string): boolean {
+    const ok = inventory.removeFixture(this.config, id);
+    if (ok) this.afterInventoryChange();
+    return ok;
+  }
+
+  addGroup(input: { name?: string; fixtureIds?: string[] }): Group {
+    const g = inventory.addGroup(this.config, input);
+    void this.save();
+    return g;
+  }
+
+  updateGroup(id: string, patch: { name?: string; fixtureIds?: string[] }): Group | null {
+    const g = inventory.updateGroup(this.config, id, patch);
+    if (g) void this.save();
+    return g;
+  }
+
+  removeGroup(id: string): boolean {
+    const ok = inventory.removeGroup(this.config, id);
+    if (ok) void this.save();
+    return ok;
+  }
+
+  /** Discover on the LAN and upsert responders into the inventory (match by mac, else ip). */
+  async discoverAndMerge(): Promise<{ fixtures: InventoryFixture[]; added: number }> {
+    const found = await this.driver.discover();
+    this.knownFixtures = found.map((f) => f.ip);
+    let added = 0;
+    for (const d of found) {
+      const list = inventory.fixturesOf(this.config);
+      const existing = list.find((f) => (d.mac && f.mac === d.mac) || f.ip === d.ip);
+      if (existing) {
+        if (d.mac && !existing.mac) existing.mac = d.mac;
+        existing.ip = d.ip; // refresh address (DHCP may have moved it)
+      } else {
+        inventory.addFixture(this.config, {
+          ip: d.ip,
+          name: d.name ?? `Fixture ${d.ip}`,
+          mac: d.mac,
+        });
+        added++;
+      }
+    }
+    this.afterInventoryChange();
+    return { fixtures: inventory.fixturesOf(this.config), added };
+  }
+
+  /** Blink a fixture a few times so the user can spot which physical lamp it is. */
+  identify(id: string): boolean {
+    const fx = inventory.fixturesOf(this.config).find((f) => f.id === id);
+    if (!fx) return false;
+    const ip = fx.ip;
+    const flashes = 3;
+    for (let i = 0; i < flashes; i++) {
+      setTimeout(
+        () => this.driver.setState(ip, { on: true, brightness: 100, r: 255, g: 255, b: 255 }),
+        i * 500,
+      );
+      setTimeout(() => this.driver.setState(ip, { on: false }), i * 500 + 250);
+    }
+    return true;
+  }
+
+  private afterInventoryChange(): void {
+    this.knownFixtures = inventory.allIps(this.config);
     void this.save();
   }
 
@@ -83,8 +184,11 @@ export class ShowEngine extends EventEmitter {
   }
 
   private targets(m: Mapping): string[] {
-    if (m.fixture && m.fixture !== '*') return [m.fixture];
-    return this.knownFixtures;
+    const ips = inventory.resolveTargets(this.config, m.fixture);
+    // Fallback: if the inventory is empty (fresh install, discovery-only), a '*'/empty ref
+    // still drives whatever discovery last found.
+    if (ips.length === 0 && (!m.fixture || m.fixture === '*')) return this.knownFixtures;
+    return ips;
   }
 
   private execute(m: Mapping, ev: MidiEvent): void {
@@ -97,22 +201,39 @@ export class ShowEngine extends EventEmitter {
         }
         case 'toggle': {
           const on = this.transitions.getBrightness(ip) > 0;
-          this.transitions.start(ip, on ? 0 : this.resolveTarget(m, ev), this.resolveDuration(m, ev), { curve: m.curve });
+          this.transitions.start(
+            ip,
+            on ? 0 : this.resolveTarget(m, ev),
+            this.resolveDuration(m, ev),
+            { curve: m.curve },
+          );
           break;
         }
         case 'pulse':
-          this.transitions.pulse(ip, this.resolveTarget(m, ev), m.attackMs ?? 40, m.releaseMs ?? 800, m.curve ?? 'easeOut');
+          this.transitions.pulse(
+            ip,
+            this.resolveTarget(m, ev),
+            m.attackMs ?? 40,
+            m.releaseMs ?? 800,
+            m.curve ?? 'easeOut',
+          );
           break;
         case 'brightness':
           this.transitions.setInstant(ip, mapRange(ev.value, 0, 127, m.min ?? 0, m.max ?? 100));
           break;
         case 'color':
-          this.transitions.setColor(ip, m.colorMode === 'fixed' && m.fixedColor
-            ? m.fixedColor
-            : hsvToRgb((ev.value / 127) * 360, 1, 1));
+          this.transitions.setColor(
+            ip,
+            m.colorMode === 'fixed' && m.fixedColor
+              ? m.fixedColor
+              : hsvToRgb((ev.value / 127) * 360, 1, 1),
+          );
           break;
         case 'temp':
-          this.transitions.setTemp(ip, Math.round(mapRange(ev.value, 0, 127, m.min ?? 2200, m.max ?? 6500)));
+          this.transitions.setTemp(
+            ip,
+            Math.round(mapRange(ev.value, 0, 127, m.min ?? 2200, m.max ?? 6500)),
+          );
           break;
       }
     }
@@ -145,12 +266,31 @@ function hsvToRgb(h: number, s: number, v: number): { r: number; g: number; b: n
   const c = v * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = v - c;
-  let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; }
-  else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; b = x; }
-  else if (h < 240) { g = x; b = c; }
-  else if (h < 300) { r = x; b = c; }
-  else { r = c; b = x; }
-  return { r: Math.round((r + m) * 255), g: Math.round((g + m) * 255), b: Math.round((b + m) * 255) };
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (h < 60) {
+    r = c;
+    g = x;
+  } else if (h < 120) {
+    r = x;
+    g = c;
+  } else if (h < 180) {
+    g = c;
+    b = x;
+  } else if (h < 240) {
+    g = x;
+    b = c;
+  } else if (h < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255),
+  };
 }

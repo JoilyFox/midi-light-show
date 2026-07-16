@@ -69,6 +69,10 @@ documented in `docs/concepts/04-design-system/` and `05-ui/`.
     (value | fixed | another CC), `curve` (linear/easeIn/easeOut), channel/number (null = any).
 - **API:** `GET /api/discover`, `GET/POST /api/state`, `GET /api/midi/ports`, `POST /api/midi/select`,
   `GET/PUT /api/mappings`, `GET /api/midi/stream` (SSE). Mappings persist to `config/show.json`.
+  - **Fixtures (Phase 3):** `GET/POST /api/fixtures`, `POST /api/fixtures/discover` (upsert),
+    `PUT/DELETE /api/fixtures/:id`, `POST /api/fixtures/:id/identify` (blink); groups via
+    `POST/PUT/DELETE /api/groups`. Fixtures have a **stable id** (IP-independent); mappings target the
+    id, a `grp_…` id, a raw IP, or `*`. See `docs/concepts/02-engine/fixture-inventory.md`.
 - **Reference tab** in the UI documents all commands live (reads current mappings).
 
 ## 3. The lamps (WiZ, local UDP 38899)

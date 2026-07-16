@@ -14,6 +14,7 @@ Entry point for the concept knowledge base. Start at [[architecture-overview]], 
 - [[midi-input]] ⭕ — reading MIDI from the macOS IAC port
 - [[mapping-engine]] ⭕ — MIDI events → fixture actions via `config/show.json`
 - [[fade-pulse-engine]] ⭕ — transitions, rate-cap + send-on-change (WiZ-safe)
+- [[fixture-inventory]] ✅ — persisted fixtures + groups + target resolution (id/group/IP/*)
 
 ## 03 — Drivers · `concepts/03-drivers/`
 - [[wiz-driver]] ⭕ — WiZ local UDP (port 38899), fire-and-forget setPilot

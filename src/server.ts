@@ -7,6 +7,17 @@
  *   GET  /api/state?ip=    → current getPilot
  *   POST /api/state        → fire-and-forget setPilot (manual UI)
  *
+ * Fixture inventory (app Phase 3):
+ *   GET    /api/fixtures                → { fixtures, groups }
+ *   POST   /api/fixtures                → create { name?, ip, number? }
+ *   POST   /api/fixtures/discover       → discover + upsert into inventory
+ *   PUT    /api/fixtures/:id            → patch { name?, ip?, number? }
+ *   DELETE /api/fixtures/:id            → remove
+ *   POST   /api/fixtures/:id/identify   → blink the lamp
+ *   POST   /api/groups                  → create { name?, fixtureIds? }
+ *   PUT    /api/groups/:id              → patch { name?, fixtureIds? }
+ *   DELETE /api/groups/:id              → remove
+ *
  * MIDI bridge:
  *   GET  /api/midi/ports   → { ports, current }
  *   POST /api/midi/select  → { index }     open a MIDI input port
@@ -53,6 +64,63 @@ app.post('/api/state', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- fixture inventory ----
+app.get('/api/fixtures', (_req, res) => {
+  res.json({ ok: true, ...engine.getInventory() });
+});
+
+app.post('/api/fixtures', (req, res) => {
+  const { ip, name, number } = req.body as { ip?: string; name?: string; number?: number };
+  if (!ip || typeof ip !== 'string')
+    return res.status(400).json({ ok: false, error: 'ip required' });
+  const fixture = engine.addFixture({ ip, name, number });
+  res.json({ ok: true, fixture });
+});
+
+app.post('/api/fixtures/discover', async (_req, res) => {
+  try {
+    const { fixtures, added } = await engine.discoverAndMerge();
+    res.json({ ok: true, fixtures, added });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: (err as Error).message });
+  }
+});
+
+app.put('/api/fixtures/:id', (req, res) => {
+  const { name, ip, number } = req.body as { name?: string; ip?: string; number?: number };
+  const fixture = engine.updateFixture(req.params.id, { name, ip, number });
+  if (!fixture) return res.status(404).json({ ok: false, error: 'fixture not found' });
+  res.json({ ok: true, fixture });
+});
+
+app.delete('/api/fixtures/:id', (req, res) => {
+  const ok = engine.removeFixture(req.params.id);
+  res.status(ok ? 200 : 404).json({ ok, ...(ok ? {} : { error: 'fixture not found' }) });
+});
+
+app.post('/api/fixtures/:id/identify', (req, res) => {
+  const ok = engine.identify(req.params.id);
+  res.status(ok ? 200 : 404).json({ ok, ...(ok ? {} : { error: 'fixture not found' }) });
+});
+
+app.post('/api/groups', (req, res) => {
+  const { name, fixtureIds } = req.body as { name?: string; fixtureIds?: string[] };
+  const group = engine.addGroup({ name, fixtureIds });
+  res.json({ ok: true, group });
+});
+
+app.put('/api/groups/:id', (req, res) => {
+  const { name, fixtureIds } = req.body as { name?: string; fixtureIds?: string[] };
+  const group = engine.updateGroup(req.params.id, { name, fixtureIds });
+  if (!group) return res.status(404).json({ ok: false, error: 'group not found' });
+  res.json({ ok: true, group });
+});
+
+app.delete('/api/groups/:id', (req, res) => {
+  const ok = engine.removeGroup(req.params.id);
+  res.status(ok ? 200 : 404).json({ ok, ...(ok ? {} : { error: 'group not found' }) });
+});
+
 // ---- MIDI ----
 app.get('/api/midi/ports', (_req, res) => {
   res.json({ ok: true, ports: engine.midi.listPorts(), current: engine.midi.currentName() });
@@ -66,12 +134,17 @@ app.post('/api/midi/select', (req, res) => {
 });
 
 app.get('/api/mappings', (_req, res) => {
-  res.json({ ok: true, midiPortName: engine.config.midiPortName, mappings: engine.config.mappings });
+  res.json({
+    ok: true,
+    midiPortName: engine.config.midiPortName,
+    mappings: engine.config.mappings,
+  });
 });
 
 app.put('/api/mappings', (req, res) => {
   const mappings = (req.body as { mappings?: unknown }).mappings;
-  if (!Array.isArray(mappings)) return res.status(400).json({ ok: false, error: 'mappings array required' });
+  if (!Array.isArray(mappings))
+    return res.status(400).json({ ok: false, error: 'mappings array required' });
   engine.setMappings(mappings);
   res.json({ ok: true });
 });
@@ -99,7 +172,13 @@ await engine.load();
 app.listen(PORT, () => {
   console.log(`\n  🎛️  MIDI Light Show — control + bridge`);
   console.log(`  ▶  http://localhost:${PORT}\n`);
-  console.log(`  MIDI port: ${engine.midi.currentName() ?? '(none selected — open the MIDI tab)'}\n`);
+  console.log(
+    `  MIDI port: ${engine.midi.currentName() ?? '(none selected — open the MIDI tab)'}\n`,
+  );
 });
 
-process.on('SIGINT', () => { engine.driver.close(); engine.midi.close(); process.exit(0); });
+process.on('SIGINT', () => {
+  engine.driver.close();
+  engine.midi.close();
+  process.exit(0);
+});
