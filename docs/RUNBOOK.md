@@ -12,6 +12,11 @@ arrangement** (Am–F–C–G) plays, and its **LIGHTS** track (routed to IAC) p
 brightness. We control Ableton **directly via the AbletonMCP remote-script socket** (`scripts/ableton_ctl.py`), not the
 Claude Code MCP. Everything is verified working end-to-end.
 
+**Since (2026-07):** a **Filament** design system + a **Vue 3 + Vite** UI now live in `web/` (component library +
+`/components` showcase — `cd web && npm run dev` → :5173, see §1b). Docs gained a concept KB under `docs/concepts/`
+(reconcile with `/sync-docs`); guard hooks + skills are wired. Repo: **github.com/JoilyFox/midi-light-show**
+(push over HTTPS via `gh`, **not** SSH — the machine SSH key = `bohdan-pn`, no access).
+
 ---
 
 ## 1. Run / restart the bridge
@@ -32,6 +37,21 @@ Verify the bridge hears Ableton (while a clip plays):
 ```bash
 node experiments/sse_listen.mjs          # prints MIDI events the bridge receives over IAC for 4s
 ```
+
+---
+
+## 1b. Run the Filament UI (`web/` — Vue 3 + Vite, app Phase 2)
+The new UI lives in `web/`, separate from the engine. Component library + `/components` showcase are built; the console
+screens (Rig/Map/Play/Log) land in Phase 3.
+```bash
+cd "/Users/bohdan/Documents/Claude Agents/midi-light-show/web"
+npm install            # first time only
+npm run dev            # → http://localhost:5173  (Vite HMR; proxies /api → engine on :8080)
+npm run build          # static build → web/dist        npm run typecheck   # vue-tsc
+```
+Stack: Vue 3 + **Tailwind v4** (`@theme` tokens in `src/styles/tokens.css`) + **tailwind-variants** + `cn()` +
+`@lucide/vue`. Components in `src/components/ui/`. **TS pinned to 5.x** (`vue-tsc` breaks on TS 7). Design system is
+documented in `docs/concepts/04-design-system/` and `05-ui/`.
 
 ---
 
@@ -108,7 +128,9 @@ Sections: Intro 1-4 → Build 5-8 → Full 9-12 → Breakdown 13-16. (Tracks 0-3
 - `experiments/sim_midi.ts`, `sim_pulse.ts` — offline engine sims (no hardware).
 - `experiments/send_to_iac.mjs`, `demo_bulb.mjs`, `beat_generator.mjs` — push MIDI into IAC (drive lamp without Ableton).
 - `experiments/sse_probe.mjs`, `sse_listen.mjs` — confirm the bridge receives IAC MIDI.
-- `.claude/skills/wiz-probe/` — WiZ API cheat-sheet. `.claude/agents/light-show-engineer.md` — project agent.
+- `.claude/skills/` — `wiz-probe` (WiZ cheat-sheet), `sync-docs` (reconcile docs↔code), `run-bridge`, `latency-audit`.
+- `.claude/hooks/` — `block-dangerous-bash`, `commit-gate` (gitleaks secret scan), `docs-staleness-nudge`.
+- `.claude/agents/light-show-engineer.md` — project agent.
 
 ## 8. Docs map
 - `CLAUDE.md` — durable brief + rules. `docs/RESEARCH.md` — WiZ/latency findings (WiZ = scenes, WLED/DMX = tight sync).

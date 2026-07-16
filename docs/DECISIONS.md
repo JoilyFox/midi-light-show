@@ -5,6 +5,44 @@ Format: date · decision · why · status.
 
 ---
 
+## 2026-07-17 · Frontend = Vue 3 + Vite SPA + Tailwind v4 (reject Nuxt/Next/NestJS-template; drop SCSS)
+**Decision:** Build the UI as a client-only **Vue 3 + Vite** SPA in `web/`, styled with **Tailwind v4** (CSS-first
+`@theme` tokens) + **tailwind-variants** + a `cn()` helper (clsx + tailwind-merge) + **@lucide/vue** icons. Components
+encapsulate Tailwind; app code composes `<Button variant size>`. **No SCSS.** Served as static files by the existing
+Express engine (dev: Vite proxies `/api` → :8080). See `docs/concepts/05-ui/`.
+**Why:** Deep-research + template review found no existing tool speaks WiZ/WLED, and a meta-framework (Nuxt/Next) or the
+NestJS template would add an SSR/second server that gives a single-user localhost tool nothing and can't host the
+persistent UDP/MIDI sockets + fade loop. The engine stays a plain long-lived Node process; the UI talks to it over
+HTTP/SSE. Tailwind v4 `@theme` = one token source → utilities + runtime CSS vars (needed for the dynamic fixture glow);
+SCSS is redundant with v4 nesting/vars and can't theme at runtime. tailwind-variants gives type-safe prop→class variants
+and dodges Tailwind's dynamic-class purge.
+**Gotcha:** `vue-tsc` fails on `typescript@7` (native port, `ERR_PACKAGE_PATH_NOT_EXPORTED`) — pin TS to 5.x.
+**Status:** Adopted. Component library + `/components` showcase built & render-verified (app Phase 2).
+
+## 2026-07-17 · Filament design system (dark console, color = the light)
+**Decision:** A dark, single-theme "instrument console" language: graphite chrome, one tungsten-amber accent
+(`#FFB25C`) for live/armed/on, and **per-fixture live color as the only saturated chroma** (the glowing-tile signature).
+System fonts (SF Pro + SF Mono), mono readouts. Documented in `docs/concepts/04-design-system/`.
+**Why:** The app makes colored light, so the UI reserves color for the light itself — distinctive, true to the subject,
+and dark-first suits a dim stage. Confirmed against a clickable mockup before building.
+**Status:** Adopted; tokens + components implemented in `web/`.
+
+## 2026-07-16 · Docs knowledge base + Claude Code tooling (hooks/skills)
+**Decision:** Adopt a right-sized concept-note KB under `docs/concepts/` (`_SCHEMA` contract, `_MAP` index,
+`sources-index`) for conceptual knowledge; keep RUNBOOK/DECISIONS/RESEARCH flat. Add hooks (`block-dangerous-bash`,
+gitleaks `commit-gate`, `docs-staleness` nudge) + skills (`sync-docs`, `run-bridge`, `latency-audit`) + Prettier/
+editorconfig/nvmrc + a scoped permissions allow/deny. Borrowed the doc-system + hook patterns from the author's other
+projects and a NestJS-template's Claude "ai-hooks"; **rejected** the rest of that template (NestJS, DB/auth/queues) as
+SaaS overkill for a single-user local tool.
+**Why:** Keep docs honest ("docs ship with features") and add safety/velocity without over-engineering.
+**Status:** Adopted (app Phase 0).
+
+## 2026-07-16 · Version control: GitHub remote + HTTPS auth
+**Decision:** `origin` = `https://github.com/JoilyFox/midi-light-show` (public), branch `main`. Push over **HTTPS via the
+`gh` credential helper** (JoilyFox token), **not SSH** — this machine's SSH key authenticates as `bohdan-pn` (no write
+access). `vendor/` (63MB ableton-mcp clone), `config/` (user data), and `.claude/settings.local.json` are gitignored.
+**Status:** Adopted; baseline pushed.
+
 ## 2026-06-29 · Added `pulse` action (fast attack → slow release) + two bugfixes
 **Decision:** New bridge action **`pulse`**: one trigger = snap on to peak (attackMs, default 40), then ease-out fade to
 0 (releaseMs, default 800; set ≈ one beat = 60000/BPM). Peak from fixed % or note velocity. Ideal for beat "flash with

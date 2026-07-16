@@ -77,13 +77,17 @@ midi-light-show/
 │   ├── RESEARCH.md      ← cited findings from deep research (latency, rate limits, hardware) — SOURCE OF TRUTH for decisions
 │   ├── HARDWARE.md      ← what we own, what to buy, budget tiers
 │   ├── ARCHITECTURE.md  ← detailed design, adapters, latency budget
-│   └── DECISIONS.md     ← running log of decisions + rationale (ADR-lite)
-├── src/                 ← controller app source
+│   ├── DECISIONS.md     ← running log of decisions + rationale (ADR-lite)
+│   ├── RUNBOOK.md       ← "continue here" — live status, run/restart, tools
+│   └── concepts/        ← atomic concept-note knowledge base (_SCHEMA + _MAP)
+├── src/                 ← engine source (MIDI → mappings → fade engine → WiZ driver)
+├── web/                 ← Vue 3 + Vite SPA — Filament UI + component library
 ├── scripts/             ← probes/spikes (e.g. discover WiZ bulb, ping latency test)
 ├── experiments/         ← throwaway latency measurements, logs, captures
 └── .claude/
-    ├── skills/          ← project skills (e.g. wiz-probe)
-    └── agents/          ← project agents
+    ├── skills/          ← project skills (wiz-probe, sync-docs, run-bridge, latency-audit)
+    ├── hooks/           ← guard hooks (block-dangerous-bash, gitleaks commit-gate, docs-staleness)
+    └── agents/          ← project agents (light-show-engineer)
 ```
 
 ## 8. Working rules (for any Claude/agent in this repo)
@@ -120,6 +124,18 @@ midi-light-show/
 
 ## 10. Status
 
+- **App build (2026-07) — Filament UI + tooling ✅ (app-plan Phases 0–2):**
+  - **Docs KB + tooling (Phase 0):** `docs/concepts/` concept notes (`_SCHEMA`/`_MAP`/`sources-index`); Claude Code
+    hooks (`block-dangerous-bash`, gitleaks `commit-gate`, `docs-staleness` nudge); skills (`sync-docs`, `run-bridge`,
+    `latency-audit`); Prettier/editorconfig/nvmrc + scoped permissions. Reconcile docs with `/sync-docs`.
+  - **Filament design system (Phase 1)** documented in `docs/concepts/04-design-system/` and **implemented (Phase 2)**
+    in `web/` as a **Vue 3 + Vite + Tailwind v4** component library (Button/Chip/Card/Fader/StatusDot/NavButton/Icon/
+    GroupChip/**FixtureTile**) + a `/components` showcase. Run: `cd web && npm run dev` → http://localhost:5173
+    (proxies `/api` to the engine on :8080). Engine UI still on :8080 until Phase 3 wires the SPA in.
+  - **Git:** repo at **github.com/JoilyFox/midi-light-show** (`main`); push over **HTTPS via `gh`**, not SSH (see
+    DECISIONS 2026-07-16). `vendor/`, `config/`, `.claude/settings.local.json` gitignored.
+  - **Next — app Phase 3:** fixture inventory — persisted `fixtures`/`groups` + CRUD API + a Fixtures UI on Filament
+    (first phase to touch the engine).
 - **Phase 0 ✅:** Scaffold + deep research done (`docs/RESEARCH.md`). Verdict above.
 - **Phase 1 ✅ (manual MVP + MIDI bridge built):** TypeScript/Node controller. `npm install` then `npm start`
   → http://localhost:8080. Two tabs: **Manual** (on/off, color, brightness, white) and **MIDI Bridge**
@@ -139,4 +155,4 @@ midi-light-show/
   pick it in the MIDI tab, Learn a control, map it. (WiZ stays a scene/mood device — tight beat hits await WLED.)
 
 ---
-_Last updated: 2026-06-29. Keep §9 and §10 current._
+_Last updated: 2026-07-17. Keep §9 and §10 current._
