@@ -1,0 +1,55 @@
+@import './tokens.css';
+
+/* Filament commits to a single dark world — see docs/concepts/04-design-system/dark-theme-and-a11y.md */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* faint warm glow from the top-right, as if a lamp were lighting the console */
+  background-image: radial-gradient(1100px 520px at 78% -12%, rgba(255, 150, 60, 0.09), transparent 70%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(255, 178, 92, 0.28);
+}
+
+/* visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-filament);
+  outline-offset: 2px;
+}
+
+/* shared motion — gated on reduced-motion; state must read with motion off */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fx-vu {
+    0%,
+    100% {
+      height: 25%;
+      opacity: 0.4;
+    }
+    50% {
+      height: 100%;
+      opacity: 1;
+    }
+  }
+  @keyframes fx-blink {
+    50% {
+      opacity: 0.25;
+    }
+  }
+}

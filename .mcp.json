@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ableton": {
+      "type": "stdio",
+      "command": "/Users/bohdan/Documents/Claude Agents/midi-light-show/vendor/ableton-mcp/.venv/bin/ableton-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🎛️ MIDI Light Show</title>
+<style>
+  :root { --bg:#0c0d12; --panel:#15171f; --panel2:#1d2030; --line:#2a2e42; --txt:#e7e9f3; --mut:#8b90a8; --acc:#6c7bff; --ok:#34c759; --err:#ff453a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:radial-gradient(1200px 600px at 50% -10%, #1a1d2e, var(--bg)); color:var(--txt); min-height:100vh; }
+  .wrap { max-width:680px; margin:0 auto; padding:24px 18px 80px; }
+  h1 { font-size:20px; margin:0 0 16px; }
+  .tabs { display:flex; gap:8px; margin-bottom:18px; }
+  .tab { padding:9px 16px; border-radius:10px; background:var(--panel); border:1px solid var(--line); cursor:pointer; color:var(--mut); }
+  .tab.active { color:var(--txt); border-color:var(--acc); background:var(--panel2); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--mut); margin:0 0 12px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select, input[type=text], input[type=number] { background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:9px; padding:9px 11px; font-size:14px; }
+  input[type=text], select { min-width:0; }
+  .grow { flex:1; }
+  button { background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:9px; padding:9px 13px; font-size:14px; cursor:pointer; transition:.12s; }
+  button:hover { border-color:var(--acc); } button:active { transform:translateY(1px); }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:600; }
+  button.danger { border-color:#7a2c2c; }
+  .power { display:flex; gap:10px; } .power button { flex:1; padding:14px; font-weight:600; }
+  .on { background:#1c3a24; border-color:#2c7a44; } .off { background:#3a1c1c; border-color:#7a2c2c; }
+  .swatches { display:grid; grid-template-columns:repeat(8,1fr); gap:8px; }
+  .swatch { aspect-ratio:1; border-radius:9px; border:1px solid rgba(255,255,255,.12); cursor:pointer; transition:.12s; }
+  .swatch:hover { transform:scale(1.08); box-shadow:0 0 0 2px var(--acc); }
+  input[type=color] { width:54px; height:42px; border:none; background:none; cursor:pointer; padding:0; border-radius:9px; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  label.small { color:var(--mut); font-size:12px; }
+  .temps { display:flex; gap:8px; } .temps button { flex:1; }
+  .status { font-size:12.5px; color:var(--mut); min-height:18px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#555; margin-right:7px; }
+  .dot.ok{background:var(--ok)} .dot.busy{background:#ffcc00} .dot.err{background:var(--err)}
+  .hint { font-size:12px; color:var(--mut); margin-top:8px; }
+  .hidden { display:none !important; }
+  /* mapping cards */
+  .map { border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:11px; background:var(--panel2); }
+  .map.fired { box-shadow:0 0 0 2px var(--acc); }
+  .map .head { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .map .head input[type=text] { flex:1; }
+  .field { display:flex; flex-direction:column; gap:4px; }
+  .fields { display:flex; gap:10px; flex-wrap:wrap; }
+  .fields .field { flex:1; min-width:120px; }
+  .learnbtn.listening { background:#3a2c12; border-color:#ffcc00; color:#ffcc00; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--mut); white-space:pre-wrap; max-height:140px; overflow:auto; }
+  .eff { font-size:11.5px; color:var(--mut); }
+  /* reference tab */
+  .chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid var(--line); white-space:nowrap; }
+  .chip.cc { background:#16213a; color:#82a8ff; border-color:#2f4d80; }
+  .chip.note { background:#241733; color:#c79bff; border-color:#4d2f80; }
+  .chip.act { background:#13302a; color:#5fe0b0; border-color:#2c7a5e; }
+  .rtable { width:100%; border-collapse:collapse; font-size:13.5px; }
+  .rtable th, .rtable td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .rtable th { color:var(--mut); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+  .rtable tr:last-child td { border-bottom:none; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:#11131c; border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:12.5px; color:#cdd3f0; }
+  .cmd { display:block; font-family:ui-monospace,Menlo,monospace; background:#11131c; border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:8px 0; font-size:12.5px; color:#cdd3f0; }
+  .cmd .muted { font-family:-apple-system,sans-serif; }
+  .muted { color:var(--mut); }
+  .flow { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); background:#11131c; border:1px solid var(--line); border-radius:10px; padding:11px 12px; overflow:auto; }
+  .swatchbar { height:10px; border-radius:6px; margin-top:6px; background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎛️ MIDI Light Show</h1>
+  <div class="tabs">
+    <div class="tab active" data-tab="manual">Manual</div>
+    <div class="tab" data-tab="midi">MIDI Bridge</div>
+    <div class="tab" data-tab="ref">Reference</div>
+  </div>
+
+  <!-- ================= MANUAL ================= -->
+  <section id="tab-manual">
+    <div class="card">
+      <h2>Bulb</h2>
+      <div class="row">
+        <select id="bulbs" class="grow"><option value="">— discover or type an IP —</option></select>
+        <button id="discoverBtn">Discover</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="ip" class="grow" type="text" placeholder="192.168.x.x (manual IP)" />
+        <button id="readBtn">Read state</button>
+      </div>
+      <p class="status" style="margin-top:12px"><span class="dot" id="dot"></span><span id="statusText">Idle</span></p>
+    </div>
+    <div class="card"><h2>Power</h2>
+      <div class="power"><button class="on" id="onBtn">⏻ ON</button><button class="off" id="offBtn">⭘ OFF</button></div>
+    </div>
+    <div class="card"><h2>Color</h2>
+      <div class="row">
+        <input type="color" id="color" value="#6c7bff" />
+        <div class="grow"><label class="small">Brightness · <span id="brightVal">100</span>%</label>
+          <input type="range" id="bright" min="10" max="100" value="100" /></div>
+      </div>
+      <div class="swatches" id="swatches" style="margin-top:14px"></div>
+    </div>
+    <div class="card"><h2>White</h2><div class="temps" id="temps"></div></div>
+  </section>
+
+  <!-- ================= MIDI ================= -->
+  <section id="tab-midi" class="hidden">
+    <div class="card">
+      <h2>MIDI input</h2>
+      <div class="row">
+        <select id="midiPort" class="grow"><option value="">— select a MIDI input —</option></select>
+        <button id="midiRefresh">Refresh</button>
+      </div>
+      <p class="status" style="margin-top:10px"><span class="dot" id="midiDot"></span><span id="midiStatus">No port</span></p>
+      <p class="hint">No ports? On macOS open <b>Audio MIDI Setup → MIDI Studio → IAC Driver</b>, tick “Device is online”,
+        then point Ableton/Cubase’s MIDI output at the IAC bus and hit Refresh.</p>
+    </div>
+
+    <div class="card">
+      <h2>Live monitor</h2>
+      <div class="mono" id="monitor">waiting for MIDI…</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Mappings</h2>
+        <div class="row">
+          <button id="addMap">+ Add mapping</button>
+          <button id="saveMap" class="primary">Save</button>
+        </div>
+      </div>
+      <div id="maps" style="margin-top:12px"></div>
+      <p class="hint">Tip: <b>Learn</b> captures the next knob/button you move. “Fade” actions: <b>ms&nbsp;per&nbsp;unit</b> sets
+        the speed indexing — <code>10</code> ⇒ value&nbsp;100&nbsp;=&nbsp;1&nbsp;s (on/off feel), <code>1000</code> ⇒ value&nbsp;100&nbsp;=&nbsp;100&nbsp;s (slow fade).</p>
+    </div>
+  </section>
+
+  <!-- ================= REFERENCE ================= -->
+  <section id="tab-ref" class="hidden">
+    <div class="card">
+      <h2>How it flows</h2>
+      <div class="flow">Ableton / Cubase ──MIDI──▶  IAC Driver Bus 1  ──▶  this bridge  ──UDP──▶  WiZ lamp
+                         (notes / CC)                 (map · fade · rate-limit)</div>
+      <p class="hint">MIDI from your DAW — or the Ableton MCP tools <code>send_cc</code>/<code>send_note</code> — hits a mapping,
+        which runs an action on a fixture. Slow devices (WiZ) are rate-limited + de-duplicated automatically.</p>
+    </div>
+
+    <div class="card">
+      <h2>Your commands (live)</h2>
+      <div id="refMaps" class="muted">loading…</div>
+      <p class="hint">Edit these in the <b>MIDI Bridge</b> tab. CC values are 0–127; note triggers use the note number (C3 = 60).</p>
+    </div>
+
+    <div class="card">
+      <h2>Actions — what each does</h2>
+      <table class="rtable">
+        <tr><th>Action</th><th>Does</th><th>Key parameters</th></tr>
+        <tr><td><span class="chip act">Fade / On-Off</span></td><td>Smoothly ramps brightness toward a target (or off). On/off and slow fade are the <i>same</i> engine — only the speed scale differs.</td><td>Direction (in/out) · Target (fixed % or note velocity) · Time source + ms-per-unit · Curve</td></tr>
+        <tr><td><span class="chip act">Toggle</span></td><td>Flips the lamp on/off — fades to the on-target, or down to off.</td><td>On-target (fixed % / velocity) · Time</td></tr>
+        <tr><td><span class="chip act">Pulse</span></td><td>One trigger = fast attack on, then slow release fade to 0. A beat “flash with decay”.</td><td>Peak (fixed % / velocity) · Attack ms · Release ms · Curve</td></tr>
+        <tr><td><span class="chip act">Color</span></td><td>Sets RGB color. “Hue from value” sweeps the rainbow across the MIDI value; or pick a fixed color.<div class="swatchbar"></div><span class="eff">value: 0=red · 42=green · 85=blue · 127=red</span></td><td>Hue-from-value · or Fixed color</td></tr>
+        <tr><td><span class="chip act">Brightness</span></td><td>Sets brightness directly from the MIDI value (knob = dimmer).</td><td>Min % · Max % (value 0–127 maps across)</td></tr>
+        <tr><td><span class="chip act">White temp</span></td><td>Sets white color temperature from the MIDI value.</td><td>Min K · Max K (e.g. 2200–6500)</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Timing & modifiers</h2>
+      <table class="rtable">
+        <tr><th>Setting</th><th>Meaning</th></tr>
+        <tr><td>ms&nbsp;per&nbsp;unit</td><td>Speed indexing for fades: <b>time = value × ms-per-unit</b>. <code>10</code> → value 100 = <b>1 s</b> (on/off feel). <code>1000</code> → value 100 = <b>100 s</b> (slow fade). Same action, different scale.</td></tr>
+        <tr><td>Time from</td><td>Where the fade duration comes from: <b>this control’s value</b>, a <b>fixed value</b>, or <b>another CC</b> (a second knob sets the time).</td></tr>
+        <tr><td>Target from</td><td>The on/target brightness: a <b>fixed %</b>, or the <b>note velocity</b> (loud = bright, soft = dim).</td></tr>
+        <tr><td>Trigger</td><td><b>On press</b> (value ≥ 64 / note-on) · <b>On release</b> (value < 64 / note-off) · <b>On any change</b> (every value — for knobs/continuous).</td></tr>
+        <tr><td>Curve</td><td>Fade shape: linear · ease-in · ease-out.</td></tr>
+        <tr><td>Channel / Number</td><td>MIDI channel 1–16 or “Any”. Number = CC number or note number.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Ableton MCP commands</h2>
+      <p class="hint">Ask Claude to run these — they emit MIDI out AbletonMCP’s output (routed to IAC), driving the mappings above live.</p>
+      <span class="cmd">send_cc(cc, value, channel=1)<br><span class="muted">one CC message — e.g. CC 20 = 64 → color</span></span>
+      <span class="cmd">send_cc_ramp(cc, start, end, duration_ms=1000, steps=20, channel=1)<br><span class="muted">timed CC sweep — e.g. CC 21 0→127 over 2000 ms → a fade</span></span>
+      <span class="cmd">send_note(note, velocity=100, channel=1, duration_ms=200)<br><span class="muted">note on+off — velocity encodes brightness — e.g. note 62 vel 110</span></span>
+      <p class="hint">Plus stock tools for building song-synced clips: <code>create_midi_track</code>, <code>create_clip</code>, <code>add_notes_to_clip</code>, <code>set_tempo</code>, <code>fire_clip</code>.</p>
+    </div>
+
+    <div class="card">
+      <h2>Setup checklist</h2>
+      <table class="rtable">
+        <tr><td>macOS IAC Driver online (Audio MIDI Setup)</td></tr>
+        <tr><td>Bridge MIDI input = IAC Driver Bus 1 (MIDI tab)</td></tr>
+        <tr><td>Ableton: AbletonMCP control surface selected, <b>Output = IAC</b></td></tr>
+        <tr><td>Restart Claude Code to load the <code>ableton</code> MCP tools</td></tr>
+        <tr><td>(Timeline clips) MIDI track “MIDI To” = IAC Driver Bus 1</td></tr>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* ---------- tabs ---------- */
+const TAB_SECTIONS = { manual:'tab-manual', midi:'tab-midi', ref:'tab-ref' };
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  Object.entries(TAB_SECTIONS).forEach(([k,id]) => $(id).classList.toggle('hidden', t.dataset.tab !== k));
+  if (t.dataset.tab === 'midi') { loadPorts(); loadMappings(); }
+  if (t.dataset.tab === 'ref') { renderReference(); }
+});
+
+/* ================= MANUAL ================= */
+let lastSend = 0;
+const setStatus = (txt, kind) => { $('statusText').textContent = txt; $('dot').className = 'dot' + (kind ? ' ' + kind : ''); };
+const currentIp = () => ($('ip').value || $('bulbs').value || '').trim();
+const hexToRgb = (hex) => { const n = parseInt(hex.slice(1),16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; };
+
+async function send(state) {
+  const ip = currentIp(); if (!ip) return setStatus('Pick or type a bulb IP first','err');
+  setStatus('Sending…','busy');
+  try { const j = await (await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip,...state})})).json();
+    setStatus(j.ok ? 'Sent ✓ '+JSON.stringify(state) : 'Error: '+j.error, j.ok?'ok':'err'); }
+  catch(e){ setStatus('Network error: '+e.message,'err'); }
+}
+const sendThrottled = (state,gap=70) => { const now=Date.now(); if(now-lastSend<gap)return; lastSend=now; send(state); };
+const sendColor = () => { const {r,g,b}=hexToRgb($('color').value); return {on:true,r,g,b,brightness:Number($('bright').value)}; };
+
+$('discoverBtn').onclick = async () => {
+  setStatus('Discovering…','busy');
+  try { const j = await (await fetch('/api/discover')).json(); const sel=$('bulbs');
+    sel.innerHTML='<option value="">— discover or type an IP —</option>';
+    (j.fixtures||[]).forEach(f=>{ const o=document.createElement('option'); o.value=f.ip; o.textContent=`${f.name||f.ip} (${f.ip})`; sel.appendChild(o); });
+    if(j.fixtures?.length){ sel.value=j.fixtures[0].ip; $('ip').value=j.fixtures[0].ip; window._fixtures=j.fixtures; }
+    setStatus(`Found ${j.fixtures?.length||0} bulb(s)`, j.fixtures?.length?'ok':'err'); }
+  catch(e){ setStatus('Discover failed: '+e.message,'err'); }
+};
+$('bulbs').onchange = () => { if($('bulbs').value) $('ip').value=$('bulbs').value; };
+$('readBtn').onclick = async () => { const ip=currentIp(); if(!ip)return setStatus('Enter an IP','err'); setStatus('Reading…','busy');
+  try{ const j=await (await fetch('/api/state?ip='+encodeURIComponent(ip))).json(); setStatus(j.state?'State: '+JSON.stringify(j.state):'No response',j.state?'ok':'err'); }catch(e){ setStatus('Read failed: '+e.message,'err'); } };
+$('onBtn').onclick = () => send({on:true});
+$('offBtn').onclick = () => send({on:false});
+$('color').oninput = () => sendThrottled(sendColor());
+$('color').onchange = () => send(sendColor());
+$('bright').oninput = () => { $('brightVal').textContent=$('bright').value; sendThrottled(sendColor()); };
+$('bright').onchange = () => send(sendColor());
+['#ff0000','#ff7a00','#ffe000','#37ff00','#00ffd5','#0066ff','#8a2be2','#ff00aa'].forEach(hex=>{
+  const d=document.createElement('div'); d.className='swatch'; d.style.background=hex;
+  d.onclick=()=>{ $('color').value=hex; send(sendColor()); }; $('swatches').appendChild(d); });
+[['Warm',2700],['Soft',3500],['Neutral',4200],['Cool',5500],['Daylight',6500]].forEach(([l,k])=>{
+  const b=document.createElement('button'); b.textContent=l; b.onclick=()=>send({on:true,temp:k,brightness:Number($('bright').value)}); $('temps').appendChild(b); });
+$('ip').value = localStorage.getItem('wizIp') || '';
+$('ip').onchange = () => localStorage.setItem('wizIp',$('ip').value);
+
+/* ================= MIDI ================= */
+let mappings = [];
+let learningId = null;
+
+async function loadPorts() {
+  try { const j = await (await fetch('/api/midi/ports')).json(); const sel=$('midiPort');
+    sel.innerHTML='<option value="">— select a MIDI input —</option>';
+    j.ports.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=p; if(p===j.current)o.selected=true; sel.appendChild(o); });
+    $('midiStatus').textContent = j.current ? ('Listening: '+j.current) : (j.ports.length?'Select a port':'No MIDI ports found');
+    $('midiDot').className = 'dot'+(j.current?' ok':(j.ports.length?'':' err')); }
+  catch(e){ $('midiStatus').textContent='Error: '+e.message; }
+}
+$('midiRefresh').onclick = loadPorts;
+$('midiPort').onchange = async () => { const i=$('midiPort').value; if(i==='')return;
+  const j = await (await fetch('/api/midi/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:Number(i)})})).json();
+  $('midiStatus').textContent='Listening: '+(j.current||'?'); $('midiDot').className='dot ok'; };
+
+async function loadMappings() {
+  try { const j = await (await fetch('/api/mappings')).json(); mappings = j.mappings || []; renderMaps(); } catch{}
+}
+$('saveMap').onclick = async () => {
+  const j = await (await fetch('/api/mappings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mappings})})).json();
+  $('saveMap').textContent = j.ok ? 'Saved ✓' : 'Error'; setTimeout(()=>$('saveMap').textContent='Save',1200);
+};
+$('addMap').onclick = () => {
+  const firstIp = window._fixtures?.[0]?.ip || localStorage.getItem('wizIp') || '*';
+  mappings.push({ id: crypto.randomUUID(), enabled:true, label:'New mapping',
+    match:{kind:'cc',channel:null,number:null}, fixture:firstIp, action:'fade',
+    trigger:'press', direction:'in', target:100, durationSource:'fixed', durationCc:1, durationFixedValue:100,
+    msPerUnit:10, durationCapMs:180000, curve:'linear', colorMode:'hueFromValue',
+    fixedColor:{r:255,g:0,b:0}, min:0, max:100, attackMs:40, releaseMs:800 });
+  renderMaps();
+};
+
+const esc = (s) => String(s ?? '').replace(/"/g,'&quot;');
+const sel = (val, opts) => opts.map(([v,l])=>`<option value="${v}" ${String(v)===String(val)?'selected':''}>${l}</option>`).join('');
+
+function renderMaps() {
+  $('maps').innerHTML = mappings.map(cardHtml).join('') || '<p class="hint">No mappings yet. Click “Add mapping”.</p>';
+}
+
+function cardHtml(m) {
+  const chOpts = [['','Any'],...Array.from({length:16},(_,i)=>[String(i),'Ch '+(i+1)])];
+  const isFade = m.action==='fade', isToggle = m.action==='toggle';
+  const showSpeed = isFade || isToggle;
+  const eff = (v) => ((v*(m.msPerUnit||10))/1000);
+  return `<div class="map" data-id="${m.id}">
+    <div class="head">
+      <input type="checkbox" data-f="enabled" ${m.enabled?'checked':''} title="enabled"/>
+      <input type="text" data-f="label" value="${esc(m.label)}" placeholder="label"/>
+      <button class="danger" data-del="${m.id}">✕</button>
+    </div>
+    <div class="fields">
+      <div class="field"><label class="small">Trigger</label>
+        <select data-f="match.kind">${sel(m.match.kind,[['cc','Control (CC)'],['noteOn','Note On'],['noteOff','Note Off']])}</select></div>
+      <div class="field"><label class="small">Channel</label><select data-f="match.channel">${sel(m.match.channel===null?'':m.match.channel,chOpts)}</select></div>
+      <div class="field"><label class="small">${m.match.kind==='cc'?'CC #':'Note #'}</label>
+        <input type="number" min="0" max="127" data-f="match.number" value="${m.match.number??''}" placeholder="any"/></div>
+      <div class="field" style="flex:0"><label class="small">&nbsp;</label>
+        <button class="learnbtn ${learningId===m.id?'listening':''}" data-learn="${m.id}">${learningId===m.id?'● listening':'Learn'}</button></div>
+    </div>
+    <div class="fields" style="margin-top:8px">
+      <div class="field grow"><label class="small">Fixture</label><input type="text" data-f="fixture" value="${esc(m.fixture)}" placeholder="bulb IP or *"/></div>
+      <div class="field"><label class="small">Action</label>
+        <select data-f="action">${sel(m.action,[['fade','Fade / On-Off'],['pulse','Pulse (attack→release)'],['toggle','Toggle'],['color','Color'],['brightness','Brightness'],['temp','White temp']])}</select></div>
+    </div>
+    ${ isFade ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">Direction</label><select data-f="direction">${sel(m.direction,[['in','In (on)'],['out','Out (off)']])}</select></div>
+      ${m.direction!=='out'?`<div class="field"><label class="small">Target from</label><select data-f="targetSource">${sel(m.targetSource||'fixed',[['fixed','Fixed %'],['velocity','Note velocity']])}</select></div>`:''}
+      ${m.direction!=='out'&&(m.targetSource||'fixed')!=='velocity'?`<div class="field"><label class="small">Target %</label><input type="number" min="1" max="100" data-f="target" value="${m.target??100}"/></div>`:''}
+    </div>`:''}
+    ${ isToggle ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">On target from</label><select data-f="targetSource">${sel(m.targetSource||'fixed',[['fixed','Fixed %'],['velocity','Note velocity']])}</select></div>
+      ${(m.targetSource||'fixed')!=='velocity'?`<div class="field"><label class="small">On target %</label><input type="number" min="1" max="100" data-f="target" value="${m.target??100}"/></div>`:''}</div>`:''}
+    ${ m.action==='pulse' ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">Level from</label><select data-f="targetSource">${sel(m.targetSource||'fixed',[['fixed','Fixed %'],['velocity','Note velocity']])}</select></div>
+      ${(m.targetSource||'fixed')!=='velocity'?`<div class="field"><label class="small">Peak %</label><input type="number" min="1" max="100" data-f="target" value="${m.target??100}"/></div>`:''}
+      <div class="field"><label class="small">Attack (ms)</label><input type="number" min="0" max="5000" data-f="attackMs" value="${m.attackMs??40}"/></div>
+      <div class="field"><label class="small">Release (ms)</label><input type="number" min="0" max="60000" data-f="releaseMs" value="${m.releaseMs??800}"/></div>
+      <div class="field"><label class="small">Curve</label><select data-f="curve">${sel(m.curve||'easeOut',[['linear','Linear'],['easeIn','Ease in'],['easeOut','Ease out']])}</select></div>
+    </div>
+    <div class="eff">Snap on to peak, then fade to 0 over release. Set release ≈ one beat (60000 ÷ BPM ms).</div>`:''}
+    ${ showSpeed ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">Trigger</label>
+        <select data-f="trigger">${sel(m.trigger||'press',[['press','On press (≥64 / note-on)'],['release','On release (<64 / note-off)'],['change','On any change']])}</select></div>
+      <div class="field"><label class="small">Time from</label>
+        <select data-f="durationSource">${sel(m.durationSource,[['value','This control value'],['fixed','Fixed value'],['cc','Another CC (2nd param)']])}</select></div>
+      ${m.durationSource==='fixed'?`<div class="field"><label class="small">Fixed value (0-127)</label><input type="number" min="0" max="127" data-f="durationFixedValue" value="${m.durationFixedValue??100}"/></div>`:''}
+      ${m.durationSource==='cc'?`<div class="field"><label class="small">2nd param CC #</label><input type="number" min="0" max="127" data-f="durationCc" value="${m.durationCc??1}"/></div>`:''}
+      <div class="field"><label class="small">Speed (ms / unit)</label>
+        <select data-f="msPerUnit">${sel(m.msPerUnit,[['10','On/off (×10 → 100=1s)'],['1000','Slow fade (×1000 → 100=100s)'],['1','Snappy (×1)'],['100','Medium (×100 → 100=10s)']])}</select></div>
+      <div class="field"><label class="small">Curve</label><select data-f="curve">${sel(m.curve,[['linear','Linear'],['easeIn','Ease in'],['easeOut','Ease out']])}</select></div>
+    </div>
+    <div class="eff">→ value 100 ≈ ${eff(100).toFixed(eff(100)<10?2:0)} s · value 127 ≈ ${eff(127).toFixed(eff(127)<10?2:0)} s</div>`:''}
+    ${ m.action==='color' ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">Color mode</label><select data-f="colorMode">${sel(m.colorMode,[['hueFromValue','Hue from value'],['fixed','Fixed color']])}</select></div>
+      ${m.colorMode==='fixed'?`<div class="field" style="flex:0"><label class="small">Color</label><input type="color" data-f="fixedColorHex" value="${rgbToHex(m.fixedColor)}"/></div>`:'<div class="field"><span class="eff">CC 0→red … 127→back to red (hue sweep)</span></div>'}
+    </div>`:''}
+    ${ (m.action==='brightness'||m.action==='temp') ? `<div class="fields" style="margin-top:8px">
+      <div class="field"><label class="small">Min (${m.action==='temp'?'K':'%'})</label><input type="number" data-f="min" value="${m.min ?? (m.action==='temp'?2200:0)}"/></div>
+      <div class="field"><label class="small">Max (${m.action==='temp'?'K':'%'})</label><input type="number" data-f="max" value="${m.max ?? (m.action==='temp'?6500:100)}"/></div>
+      <div class="field"><span class="eff">maps incoming value 0-127 across this range</span></div></div>`:''}
+  </div>`;
+}
+
+const rgbToHex = (c) => c ? '#'+[c.r,c.g,c.b].map(x=>(x|0).toString(16).padStart(2,'0')).join('') : '#ff0000';
+const hexToRgbObj = (hex) => { const n=parseInt(hex.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; };
+
+function setPath(obj, path, val) { const ks=path.split('.'); let o=obj; for(let i=0;i<ks.length-1;i++) o=o[ks[i]]; o[ks[ks.length-1]]=val; }
+
+// delegated edits
+$('maps').addEventListener('change', (e) => handleEdit(e, true));
+$('maps').addEventListener('input', (e) => handleEdit(e, false));
+function handleEdit(e, isChange) {
+  const f = e.target.dataset.f; if(!f) return;
+  const card = e.target.closest('.map'); const m = mappings.find(x=>x.id===card.dataset.id); if(!m) return;
+  let v;
+  if (e.target.type==='checkbox') v = e.target.checked;
+  else if (f==='match.channel') v = e.target.value===''? null : Number(e.target.value);
+  else if (f==='match.number') v = e.target.value===''? null : Number(e.target.value);
+  else if (f==='fixedColorHex') { m.fixedColor = hexToRgbObj(e.target.value); return; }
+  else if (['target','durationFixedValue','durationCc','msPerUnit','min','max','attackMs','releaseMs'].includes(f)) v = Number(e.target.value);
+  else v = e.target.value;
+  setPath(m, f, v);
+  // structural fields → re-render this card
+  if (isChange && ['action','match.kind','direction','durationSource','colorMode','msPerUnit','targetSource'].includes(f)) renderMaps();
+}
+$('maps').addEventListener('click', (e) => {
+  if (e.target.dataset.del) { mappings = mappings.filter(x=>x.id!==e.target.dataset.del); renderMaps(); }
+  if (e.target.dataset.learn) { learningId = learningId===e.target.dataset.learn ? null : e.target.dataset.learn; renderMaps(); }
+});
+
+/* ---------- SSE: live monitor + learn + fire flash ---------- */
+const monLines = [];
+function startStream() {
+  const es = new EventSource('/api/midi/stream');
+  es.addEventListener('midi', (e) => {
+    const ev = JSON.parse(e.data);
+    monLines.unshift(`${ev.kind.padEnd(8)} ch${ev.channel+1} #${ev.number} = ${ev.value}`);
+    if (monLines.length>12) monLines.pop();
+    $('monitor').textContent = monLines.join('\n');
+    if (learningId) {
+      const m = mappings.find(x=>x.id===learningId);
+      if (m) { m.match = { kind: ev.kind, channel: ev.channel, number: ev.number }; learningId=null; renderMaps(); }
+    }
+  });
+  es.addEventListener('applied', (e) => {
+    const { mappingId } = JSON.parse(e.data);
+    const el = document.querySelector(`.map[data-id="${mappingId}"]`);
+    if (el) { el.classList.add('fired'); setTimeout(()=>el.classList.remove('fired'),280); }
+  });
+  es.onerror = () => { /* auto-reconnects */ };
+}
+startStream();
+
+/* ---------- Reference tab: live human-readable command list ---------- */
+async function renderReference() {
+  try {
+    const j = await (await fetch('/api/mappings')).json();
+    const ms = j.mappings || [];
+    if (!ms.length) { $('refMaps').innerHTML = '<span class="muted">No commands yet — add mappings in the MIDI Bridge tab.</span>'; return; }
+    $('refMaps').innerHTML = '<table class="rtable"><tr><th>Trigger</th><th>What it does</th><th>Fixture</th></tr>' +
+      ms.map(m => { const d = describeMapping(m);
+        return `<tr style="${m.enabled?'':'opacity:.4'}"><td>${d.trig} <span class="muted">${d.ch}</span></td><td>${d.act}</td><td><span class="muted">${esc(m.fixture)}</span></td></tr>`;
+      }).join('') + '</table>';
+  } catch(e) { $('refMaps').innerHTML = '<span class="muted">Could not load commands.</span>'; }
+}
+function describeMapping(m) {
+  const num = m.match.number==null ? '<span class="muted">any#</span>' : m.match.number;
+  const trig = m.match.kind==='cc'
+    ? `<span class="chip cc">CC ${num}</span>`
+    : `<span class="chip note">${m.match.kind==='noteOn'?'Note':'NoteOff'} ${num}</span>`;
+  const ch = m.match.channel==null ? 'any ch' : 'ch'+(m.match.channel+1);
+  const secs = (v) => (v/1000>=10 ? Math.round(v/1000) : (v/1000).toFixed(2));
+  const mpu = m.msPerUnit||10;
+  const timeDesc = () => {
+    if (m.durationSource==='fixed') return ` over ~${secs((m.durationFixedValue??100)*mpu)} s`;
+    if (m.durationSource==='cc') return ` over a time set by CC ${m.durationCc} (×${mpu} ms/unit)`;
+    return ` over value×${mpu} ms (value 100 ≈ ${secs(100*mpu)} s)`;
+  };
+  const targetDesc = () => m.targetSource==='velocity' ? ' to a brightness from note velocity' : ` to ${m.target??100}%`;
+  let act;
+  if (m.action==='color') act = m.colorMode==='fixed' ? 'Set a fixed color' : 'Set color — hue from value';
+  else if (m.action==='brightness') act = `Set brightness ${m.min??0}–${m.max??100}% from value`;
+  else if (m.action==='temp') act = `Set white ${m.min??2200}–${m.max??6500} K from value`;
+  else if (m.action==='toggle') act = `Toggle on/off${timeDesc()}`;
+  else if (m.action==='pulse') act = `Pulse — snap on${targetDesc()} in ${m.attackMs??40} ms, then release to 0 over ${m.releaseMs??800} ms`;
+  else if (m.action==='fade') act = m.direction==='out' ? `Fade out (off)${timeDesc()}` : `Fade in${targetDesc()}${timeDesc()}`;
+  else act = m.action;
+  return { trig, ch, act };
+}
+</script>
+</body>
+</html>

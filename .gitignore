@@ -1,0 +1,33 @@
+# deps / envs
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# secrets / build output
+.env
+.env.*
+!.env.example
+dist/
+*.pem
+*.key
+
+# experiment outputs (keep notes, ignore raw captures)
+experiments/*.log
+experiments/*.csv
+experiments/*.pcap
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# runtime show config (user data)
+config/
+
+# vendored third-party — ableton-mcp is a 63MB nested clone; our extensions are documented in docs/ABLETON-MCP.md
+vendor/
+
+# personal / machine-specific Claude settings
+.claude/settings.local.json

@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+/* Filament design tokens — the single source of truth.
+   Declaring them in @theme generates utilities (bg-ink, text-filament, border-line, font-mono, …)
+   AND exposes each as a CSS variable (var(--color-filament)) for runtime use (e.g. the fixture glow).
+   See docs/concepts/04-design-system/color-tokens.md */
+@theme {
+  /* graphite — the chrome */
+  --color-ink: #0f1013;
+  --color-ink-2: #0a0b0d;
+  --color-panel: #15171c;
+  --color-panel-2: #1b1e24;
+  --color-panel-3: #23272f;
+  --color-line: #2a2e37;
+  --color-line-soft: #1f232a;
+  --color-text: #eceef1;
+  --color-text-dim: #98a0aa;
+  --color-text-mute: #606770;
+
+  /* filament — the one accent */
+  --color-filament: #ffb25c;
+  --color-filament-hi: #ffdca6;
+  --color-filament-deep: #c77a2e;
+
+  /* state — semantic, not the accent */
+  --color-online: #57d9a3;
+  --color-offline: #565d67;
+  --color-danger: #ff6b6b;
+
+  /* type — system faces */
+  --font-sans: -apple-system, 'SF Pro Display', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, 'JetBrains Mono', monospace;
+}

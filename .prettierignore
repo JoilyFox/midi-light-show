@@ -1,0 +1,7 @@
+node_modules/
+dist/
+config/
+package-lock.json
+vendor/
+experiments/*.log
+experiments/*.csv
