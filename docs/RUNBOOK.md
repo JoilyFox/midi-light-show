@@ -75,6 +75,10 @@ documented in `docs/concepts/04-design-system/` and `05-ui/`.
     `PUT/DELETE /api/fixtures/:id`, `POST /api/fixtures/:id/identify` (blink); groups via
     `POST/PUT/DELETE /api/groups`. Fixtures have a **stable id** (IP-independent); mappings target the
     id, a `grp_…` id, a raw IP, or `*`. See `docs/concepts/02-engine/fixture-inventory.md`.
+  - **Live output (Phase 5):** `POST /api/state` now routes through `engine.manualSet` (fires the
+    driver + tracks live state); `GET /api/fixtures/live` snapshots it; the SSE stream adds a
+    `fixtureState` event so UI tiles glow with real color/brightness. WiZ-safe: the Play UI throttles
+    slider sends (~18/s). See `docs/concepts/02-engine/live-output-stream.md`.
 - **Reference tab** in the UI documents all commands live (reads current mappings).
 
 ## 3. The lamps (WiZ, local UDP 38899)

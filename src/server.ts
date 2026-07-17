@@ -23,7 +23,8 @@
  *   POST /api/midi/select  → { index }     open a MIDI input port
  *   GET  /api/mappings     → { midiPortName, mappings }
  *   PUT  /api/mappings     → { mappings }   replace + persist
- *   GET  /api/midi/stream  → SSE: live 'midi' events + 'applied' mapping hits (monitor/learn)
+ *   GET  /api/midi/stream  → SSE: 'midi' events + 'applied' mapping hits + 'fixtureState' live output
+ *   GET  /api/fixtures/live → snapshot of live per-fixture output
  */
 
 import express from 'express';
@@ -60,8 +61,13 @@ app.get('/api/state', async (req, res) => {
 app.post('/api/state', (req, res) => {
   const { ip, ...rest } = req.body as { ip?: string } & FixtureState;
   if (!ip) return res.status(400).json({ ok: false, error: 'ip required' });
-  engine.driver.setState(ip, rest);
+  engine.manualSet(ip, rest);
   res.json({ ok: true });
+});
+
+/** Snapshot of live output per fixture IP (what the SSE 'fixtureState' events stream). */
+app.get('/api/fixtures/live', (_req, res) => {
+  res.json({ ok: true, live: engine.liveStates() });
 });
 
 // ---- fixture inventory ----
@@ -158,13 +164,17 @@ app.get('/api/midi/stream', (req, res) => {
   res.write(': connected\n\n');
   const onMidi = (ev: unknown) => res.write(`event: midi\ndata: ${JSON.stringify(ev)}\n\n`);
   const onApplied = (a: unknown) => res.write(`event: applied\ndata: ${JSON.stringify(a)}\n\n`);
+  const onFixture = (s: unknown) =>
+    res.write(`event: fixtureState\ndata: ${JSON.stringify(s)}\n\n`);
   engine.on('midi', onMidi);
   engine.on('applied', onApplied);
+  engine.on('fixtureState', onFixture);
   const ping = setInterval(() => res.write(': ping\n\n'), 15000);
   req.on('close', () => {
     clearInterval(ping);
     engine.off('midi', onMidi);
     engine.off('applied', onApplied);
+    engine.off('fixtureState', onFixture);
   });
 });
 

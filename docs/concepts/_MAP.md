@@ -15,6 +15,7 @@ Entry point for the concept knowledge base. Start at [[architecture-overview]], 
 - [[mapping-engine]] ⭕ — MIDI events → fixture actions via `config/show.json`
 - [[fade-pulse-engine]] ⭕ — transitions, rate-cap + send-on-change (WiZ-safe)
 - [[fixture-inventory]] ✅ — persisted fixtures + groups + target resolution (id/group/IP/*)
+- [[live-output-stream]] ✅ — fixtureState SSE: live per-fixture output → UI tiles
 
 ## 03 — Drivers · `concepts/03-drivers/`
 - [[wiz-driver]] ⭕ — WiZ local UDP (port 38899), fire-and-forget setPilot

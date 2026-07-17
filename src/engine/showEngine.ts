@@ -10,27 +10,75 @@ import { promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WizUdpDriver } from '../drivers/wiz';
-import { TransitionEngine } from './transitions';
+import { TransitionEngine, kelvinToRgb } from './transitions';
 import { MidiInput } from '../midi/input';
 import type { Group, InventoryFixture, Mapping, MidiEvent, ShowConfig } from './types';
+import type { FixtureState } from '../types';
 import * as inventory from './inventory';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = join(__dirname, '..', '..', 'config', 'show.json');
 const ccKey = (ch: number, num: number) => `${ch}:${num}`;
 
+interface FixtureLive {
+  on: boolean;
+  brightness: number; // 0..100
+  color?: { r: number; g: number; b: number };
+}
+
 export class ShowEngine extends EventEmitter {
   readonly driver = new WizUdpDriver();
-  readonly transitions = new TransitionEngine(this.driver);
+  readonly transitions = new TransitionEngine(this.driver, (ip, out) => this.onOutput(ip, out));
   readonly midi = new MidiInput();
   config: ShowConfig = { midiPortName: null, mappings: [] };
   knownFixtures: string[] = [];
   private ccState = new Map<string, number>();
+  /** Last known output per fixture IP — streamed to the UI as 'fixtureState'. */
+  private live = new Map<string, FixtureLive>();
 
   constructor() {
     super();
     this.setMaxListeners(50); // SSE clients subscribe here
     this.midi.on('event', (ev: MidiEvent) => this.onMidi(ev));
+  }
+
+  /** Merge a partial output into the live map and broadcast it (retaining last color on fades). */
+  private onOutput(
+    ip: string,
+    out: { on: boolean; brightness: number; color?: { r: number; g: number; b: number } },
+  ): void {
+    const prev = this.live.get(ip);
+    const next: FixtureLive = {
+      on: out.on,
+      brightness: out.brightness,
+      color: out.color ?? prev?.color,
+    };
+    this.live.set(ip, next);
+    this.emit('fixtureState', { ip, ...next });
+  }
+
+  /** Current live output for every fixture the engine has driven. */
+  liveStates(): Array<{ ip: string } & FixtureLive> {
+    return [...this.live.entries()].map(([ip, s]) => ({ ip, ...s }));
+  }
+
+  /**
+   * Manual (UI) set — fire the driver, sync the fade engine's tracked brightness so a later fade
+   * starts from here, and broadcast the resulting live state.
+   */
+  manualSet(ip: string, state: FixtureState): void {
+    this.driver.setState(ip, state);
+    const prev = this.live.get(ip);
+    const brightness = state.brightness ?? prev?.brightness ?? 100;
+    const on = state.on ?? (state.brightness != null ? state.brightness > 0 : (prev?.on ?? true));
+    let color = prev?.color;
+    if (state.r != null || state.g != null || state.b != null) {
+      color = { r: state.r ?? 0, g: state.g ?? 0, b: state.b ?? 0 };
+    } else if (state.temp != null) {
+      color = kelvinToRgb(state.temp);
+    }
+    this.transitions.setCurrent(ip, on ? brightness : 0);
+    this.onOutput(ip, { on, brightness, color });
   }
 
   async load(): Promise<void> {

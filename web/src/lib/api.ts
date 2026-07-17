@@ -57,6 +57,15 @@ export const api = {
   setState: (ip: string, state: ManualState) => req<{ ok: true }>('/state', json({ ip, ...state })),
   getState: (ip: string) =>
     req<{ state: Record<string, unknown> | null }>(`/state?ip=${encodeURIComponent(ip)}`),
+  liveStates: () =>
+    req<{
+      live: Array<{
+        ip: string;
+        on: boolean;
+        brightness: number;
+        color?: { r: number; g: number; b: number };
+      }>;
+    }>('/fixtures/live'),
 
   // ---- MIDI ----
   midiPorts: () => req<{ ports: string[]; current: string | null }>('/midi/ports'),
@@ -75,16 +84,17 @@ export const api = {
 export function openMidiStream(handlers: {
   onMidi?: (ev: unknown) => void;
   onApplied?: (a: unknown) => void;
+  onFixtureState?: (s: unknown) => void;
   onOpen?: () => void;
   onError?: () => void;
 }): () => void {
   const es = new EventSource('/api/midi/stream');
-  if (handlers.onMidi)
-    es.addEventListener('midi', (e) => handlers.onMidi!(JSON.parse((e as MessageEvent).data)));
-  if (handlers.onApplied)
-    es.addEventListener('applied', (e) =>
-      handlers.onApplied!(JSON.parse((e as MessageEvent).data)),
-    );
+  const on = (name: string, fn?: (v: unknown) => void) => {
+    if (fn) es.addEventListener(name, (e) => fn(JSON.parse((e as MessageEvent).data)));
+  };
+  on('midi', handlers.onMidi);
+  on('applied', handlers.onApplied);
+  on('fixtureState', handlers.onFixtureState);
   if (handlers.onOpen) es.addEventListener('open', () => handlers.onOpen!());
   if (handlers.onError) es.addEventListener('error', () => handlers.onError!());
   return () => es.close();

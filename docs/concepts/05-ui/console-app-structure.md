@@ -60,8 +60,9 @@ deliberately dependency-light: no Vuex/Pinia, no vue-router — a single `reacti
   fans out duplicate listeners.
 
 ## Status & TODO
-- Done: shell, router, store, API client, toasts, **Rig** screen (fixture + group CRUD, discover, identify).
-- TODO: Play (Phase 5), Map + Log (Phase 6), and wiring the `live` map from a fixture-state SSE channel (Phase 5/7).
+- Done: shell, router, store, API client, toasts, **Rig** (fixture + group CRUD, discover, identify),
+  **Play** (per-target power/brightness/color/temp/flash, WiZ-safe throttled sends, live tiles via SSE).
+- TODO: Map + Log (Phase 6).
 
 ## See also
 - [[component-library-pattern]] — the prop-driven components the screens compose

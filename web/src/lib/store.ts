@@ -57,6 +57,18 @@ export async function refreshReachability(): Promise<void> {
   }
 }
 
+/** Seed the live-output map from the engine snapshot (SSE keeps it current after). */
+export async function loadLive(): Promise<void> {
+  try {
+    const { live } = await api.liveStates();
+    const next = new Map<string, LiveState>();
+    for (const s of live) next.set(s.ip, { on: s.on, brightness: s.brightness, color: s.color });
+    state.live = next;
+  } catch {
+    /* ignore */
+  }
+}
+
 // ---- derived helpers ----
 export const fixtureById = (id: string) => state.fixtures.find((f) => f.id === id);
 
@@ -96,6 +108,15 @@ export function connectStream(): void {
   closeStream = openMidiStream({
     onOpen: () => (state.connected = true),
     onError: () => (state.connected = false),
+    onFixtureState: (s) => {
+      const f = s as {
+        ip: string;
+        on: boolean;
+        brightness: number;
+        color?: { r: number; g: number; b: number };
+      };
+      state.live.set(f.ip, { on: f.on, brightness: f.brightness, color: f.color });
+    },
     onApplied: () => {
       /* mapping hit — screens may flash tiles; handled per-screen */
     },
