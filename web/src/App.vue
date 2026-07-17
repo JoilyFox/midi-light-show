@@ -6,6 +6,9 @@ import {
   loadMappings,
   loadMidiPorts,
   loadLive,
+  hydrateLive,
+  startLivePolling,
+  stopLivePolling,
   connectStream,
   disconnectStream,
 } from '@/lib/store';
@@ -30,12 +33,16 @@ const current = computed(() => screens[route.value]);
 onMounted(() => {
   connectStream(); // one SSE connection for the whole app
   // Warm the store so cross-screen actions (e.g. shell Blackout) work before visiting a screen.
-  void loadInventory();
+  void loadInventory().then(() => hydrateLive()); // real on/off/colour + reachability
   void loadMappings();
   void loadMidiPorts();
   void loadLive();
+  startLivePolling(); // keep tile status + reachability current
 });
-onBeforeUnmount(() => disconnectStream());
+onBeforeUnmount(() => {
+  disconnectStream();
+  stopLivePolling();
+});
 </script>
 
 <template>

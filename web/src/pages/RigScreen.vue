@@ -5,7 +5,6 @@ import {
   useShow,
   loadInventory,
   loadMappings,
-  refreshReachability,
   hydrateLive,
   midiLabelFor,
   isOnline,
@@ -68,8 +67,7 @@ async function togglePower(f: Fixture) {
 onMounted(async () => {
   try {
     await Promise.all([loadInventory(), loadMappings()]);
-    void refreshReachability();
-    void hydrateLive(); // read real on/off/colour so tiles + toggle reflect reality
+    void hydrateLive(); // read real on/off/colour + reachability so tiles reflect reality
   } catch (e) {
     toastError((e as Error).message);
   }
@@ -77,7 +75,6 @@ onMounted(async () => {
 
 async function onDiscovered() {
   await loadInventory();
-  void refreshReachability();
   void hydrateLive();
 }
 

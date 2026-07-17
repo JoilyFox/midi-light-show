@@ -7,7 +7,6 @@ import {
   loadMappings,
   loadLive,
   hydrateLive,
-  refreshReachability,
   midiLabelFor,
   isOnline,
   liveFor,
@@ -145,7 +144,6 @@ onMounted(async () => {
   try {
     await Promise.all([loadInventory(), loadMappings(), loadLive()]);
     selectAll(); // start with everything selected
-    void refreshReachability();
     void hydrateLive();
   } catch (e) {
     toastError((e as Error).message);

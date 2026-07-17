@@ -63,16 +63,6 @@ export async function loadMidiPorts(): Promise<void> {
   state.midiCurrent = current;
 }
 
-/** Passive reachability probe — marks which fixtures answered (no visible change). */
-export async function refreshReachability(): Promise<void> {
-  try {
-    const { fixtures } = await api.discover();
-    state.online = new Set(fixtures.map((f) => f.ip));
-  } catch {
-    /* discovery failed; leave online set as-is */
-  }
-}
-
 /** Seed the live-output map from the engine snapshot (SSE keeps it current after). */
 export async function loadLive(): Promise<void> {
   try {
@@ -86,15 +76,19 @@ export async function loadLive(): Promise<void> {
 }
 
 /**
- * Read each fixture's actual current state from the bulb (getPilot) and merge it into the live map,
- * so tiles show real on/off/colour on load — and a click-to-toggle knows the true starting state.
+ * Read each fixture's real current state directly from the bulb (unicast getPilot) and update the
+ * live map + the `online` set. This is the source of truth for reachability: WiZ *broadcast* discovery
+ * is unreliable (many bulbs never answer 255.255.255.255) even though they're fully controllable by
+ * unicast — so a bulb is "online" iff it answers a direct read, exactly like control does.
  */
 export async function hydrateLive(): Promise<void> {
+  const online = new Set<string>();
   await Promise.all(
     state.fixtures.map(async (f) => {
       try {
         const { state: s } = await api.getState(f.ip);
-        if (!s) return;
+        if (!s) return; // no answer → leave out of `online`
+        online.add(f.ip);
         const on = !!s.state;
         const brightness = typeof s.dimming === 'number' ? s.dimming : 0;
         const hasRgb = s.r != null || s.g != null || s.b != null;
@@ -103,10 +97,25 @@ export async function hydrateLive(): Promise<void> {
           : state.live.get(f.ip)?.color;
         state.live.set(f.ip, { on, brightness, color });
       } catch {
-        /* unreachable bulb — leave whatever we knew */
+        /* unreachable bulb — leave it out of `online` */
       }
     }),
   );
+  state.online = online;
+}
+
+// Keep the tiles' status current: re-read every fixture on an interval (getPilot is one cheap UDP
+// packet per bulb). SSE covers engine-driven changes; this covers external ones + reachability.
+let livePoller: ReturnType<typeof setInterval> | null = null;
+export function startLivePolling(intervalMs = 5000): void {
+  if (livePoller != null) return;
+  livePoller = setInterval(() => void hydrateLive(), intervalMs);
+}
+export function stopLivePolling(): void {
+  if (livePoller != null) {
+    clearInterval(livePoller);
+    livePoller = null;
+  }
 }
 
 // ---- derived helpers ----
