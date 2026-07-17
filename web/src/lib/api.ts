@@ -1,7 +1,7 @@
 // Typed client for the engine's HTTP + SSE API. One place that knows the wire shapes.
 // In dev, Vite proxies /api → the engine on :8080 (see vite.config.ts).
 
-import type { Fixture, Group, Mapping, ManualState } from '@/types';
+import type { DiscoveredBulb, Fixture, Group, Mapping, ManualState } from '@/types';
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -52,6 +52,10 @@ export const api = {
 
   // ---- passive reachability probe (no visible change) ----
   discover: () => req<{ fixtures: { ip: string }[] }>('/discover'),
+
+  // ---- full-network scan + blink-by-ip (Add-fixture discovery flow) ----
+  scan: () => req<{ bulbs: DiscoveredBulb[] }>('/scan'),
+  identifyIp: (ip: string) => req<{ ok: true }>('/identify', json({ ip })),
 
   // ---- manual control ----
   setState: (ip: string, state: ManualState) => req<{ ok: true }>('/state', json({ ip, ...state })),

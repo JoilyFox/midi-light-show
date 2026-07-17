@@ -184,20 +184,56 @@ export class ShowEngine extends EventEmitter {
     return { fixtures: inventory.fixturesOf(this.config), added };
   }
 
-  /** Blink a fixture a few times so the user can spot which physical lamp it is. */
+  /** Full-network scan (broadcast + unicast sweep) for WiZ bulbs, with live pilot preview. */
+  scan(): ReturnType<WizUdpDriver['scan']> {
+    return this.driver.scan();
+  }
+
+  /** Blink a known fixture (by id) so the user can spot which physical lamp it is. */
   identify(id: string): boolean {
     const fx = inventory.fixturesOf(this.config).find((f) => f.id === id);
     if (!fx) return false;
-    const ip = fx.ip;
+    void this.blinkIp(fx.ip);
+    return true;
+  }
+
+  /** Blink any bulb by IP (used from the discovery list, before it's added to the inventory). */
+  identifyIp(ip: string): void {
+    void this.blinkIp(ip);
+  }
+
+  /**
+   * Flash a bulb white three times, then restore its prior state — so identifying a lamp during
+   * setup doesn't leave it switched off. Fire-and-forget; the initial getPilot is best-effort.
+   */
+  private async blinkIp(ip: string): Promise<void> {
+    const before = await this.driver.getState(ip);
+    const step = 600;
     const flashes = 3;
     for (let i = 0; i < flashes; i++) {
       setTimeout(
         () => this.driver.setState(ip, { on: true, brightness: 100, r: 255, g: 255, b: 255 }),
-        i * 500,
+        i * step,
       );
-      setTimeout(() => this.driver.setState(ip, { on: false }), i * 500 + 250);
+      setTimeout(() => this.driver.setState(ip, { on: false }), i * step + step / 2);
     }
-    return true;
+    setTimeout(
+      () => {
+        if (!before) return void this.driver.setState(ip, { on: true });
+        const s = before as Record<string, unknown>;
+        const restore: FixtureState = { on: !!s.state };
+        if (typeof s.dimming === 'number') restore.brightness = s.dimming;
+        if (s.r != null || s.g != null || s.b != null) {
+          restore.r = Number(s.r ?? 0);
+          restore.g = Number(s.g ?? 0);
+          restore.b = Number(s.b ?? 0);
+        } else if (typeof s.temp === 'number') {
+          restore.temp = s.temp;
+        }
+        this.driver.setState(ip, restore);
+      },
+      flashes * step + 120,
+    );
   }
 
   private afterInventoryChange(): void {

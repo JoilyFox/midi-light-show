@@ -4,12 +4,12 @@ title: Fixture inventory & groups
 category: 02-engine
 tags: [cat/engine, fixtures, config, api]
 status: current
-code: [src/engine/inventory.ts, src/engine/types.ts, src/engine/showEngine.ts, src/server.ts]
+code: [src/engine/inventory.ts, src/engine/types.ts, src/engine/showEngine.ts, src/server.ts, src/drivers/wiz.ts]
 prerequisites: []
 see_also: ["[[mapping-engine]]", "[[fixture-driver-interface]]", "[[wiz-driver]]"]
 source_ids: [qlc-plus]
 added: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 ---
 
 # Fixture inventory & groups
@@ -35,12 +35,19 @@ inventory, and everything else (mappings, manual control) refers to fixtures **b
   addGroup / updateGroup / removeGroup / discoverAndMerge / identify`, each persisting via `save()`.
   `execute()` targets fixtures through `resolveTargets`, so one mapping can drive a single lamp,
   a whole group, or all lamps.
+- **Network scan** — `driver.scan()` (in `wiz.ts`) does the thorough discovery the Add-fixture flow uses:
+  it **broadcasts AND unicasts getPilot to every host in the local /24(s)**, keeps only addresses that
+  answer the WiZ protocol (the "only bulbs" filter), and enriches each with module name + live pilot
+  state (on/brightness/color/temp) for preview. Returned by `GET /api/scan` — read-only, no inventory change.
 - **Discovery merge** — `discoverAndMerge()` broadcasts on the LAN and upserts responders into the
   inventory, matching first by `mac` (durable) then by `ip` (refreshing the address on a DHCP move).
-- **Identify** — `identify(id)` blinks the lamp white three times so the operator can spot which
-  physical fixture a row is.
-- **API** — `src/server.ts`: `GET/POST /api/fixtures`, `POST /api/fixtures/discover`,
-  `PUT/DELETE /api/fixtures/:id`, `POST /api/fixtures/:id/identify`, and `POST/PUT/DELETE /api/groups`.
+- **Identify** — `blinkIp(ip)` flashes a lamp white three times **then restores its prior state** (so
+  identifying doesn't leave a bulb off). `identify(id)` blinks a known fixture; `identifyIp(ip)` blinks
+  any address — used from the discovery list to locate a bulb *before* adding it.
+- **API** — `src/server.ts`: `GET/POST /api/fixtures`, `POST /api/fixtures/discover`, `GET /api/scan`,
+  `POST /api/identify {ip}`, `PUT/DELETE /api/fixtures/:id`, `POST /api/fixtures/:id/identify`, and
+  `POST/PUT/DELETE /api/groups`. The **Rig → Discover** modal (`web/DiscoverModal.vue`) drives scan +
+  per-bulb blink + add.
 
 ## Key decisions & why
 - **Id, not IP, is identity.** WiFi bulbs move on DHCP; binding mappings to the address would break the

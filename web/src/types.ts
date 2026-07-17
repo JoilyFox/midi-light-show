@@ -63,6 +63,20 @@ export interface FixtureLive {
   on: boolean;
 }
 
+/** A bulb returned by a network scan (not yet in the inventory). */
+export interface DiscoveredBulb {
+  ip: string;
+  mac?: string;
+  name?: string;
+  module?: string;
+  pilot?: {
+    on: boolean;
+    brightness: number;
+    color?: { r: number; g: number; b: number };
+    temp?: number;
+  };
+}
+
 /** Abstract manual state sent to POST /api/state. */
 export interface ManualState {
   on?: boolean;

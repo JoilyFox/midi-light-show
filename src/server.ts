@@ -11,6 +11,8 @@
  *   GET    /api/fixtures                → { fixtures, groups }
  *   POST   /api/fixtures                → create { name?, ip, number? }
  *   POST   /api/fixtures/discover       → discover + upsert into inventory
+ *   GET    /api/scan                    → full-network bulb scan (preview only, no inventory change)
+ *   POST   /api/identify                → blink any bulb by { ip } (before adding it)
  *   PUT    /api/fixtures/:id            → patch { name?, ip?, number? }
  *   DELETE /api/fixtures/:id            → remove
  *   POST   /api/fixtures/:id/identify   → blink the lamp
@@ -96,6 +98,24 @@ app.post('/api/fixtures/discover', async (_req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: (err as Error).message });
   }
+});
+
+// Full-network scan for bulbs (broadcast + unicast sweep) — does NOT modify the inventory.
+app.get('/api/scan', async (_req, res) => {
+  try {
+    res.json({ ok: true, bulbs: await engine.scan() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Blink any bulb by IP (identify a discovered lamp before adding it).
+app.post('/api/identify', (req, res) => {
+  const ip = (req.body as { ip?: string }).ip;
+  if (!ip || typeof ip !== 'string')
+    return res.status(400).json({ ok: false, error: 'ip required' });
+  engine.identifyIp(ip);
+  res.json({ ok: true });
 });
 
 app.put('/api/fixtures/:id', (req, res) => {

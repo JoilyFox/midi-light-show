@@ -15,6 +15,7 @@ import { toastOk, toastError } from '@/lib/toast';
 import type { Fixture } from '@/types';
 import ScreenHeader from '@/components/console/ScreenHeader.vue';
 import FixtureFormModal from '@/components/console/FixtureFormModal.vue';
+import DiscoverModal from '@/components/console/DiscoverModal.vue';
 import GroupsModal from '@/components/console/GroupsModal.vue';
 import FixtureTile from '@/components/ui/FixtureTile.vue';
 import Button from '@/components/ui/Button.vue';
@@ -22,11 +23,11 @@ import GroupChip from '@/components/ui/GroupChip.vue';
 import Icon from '@/components/ui/Icon.vue';
 
 const show = useShow();
-const discovering = ref(false);
 const selected = ref<'all' | string>('all');
 const formOpen = ref(false);
 const editing = ref<Fixture | null>(null);
 const groupsOpen = ref(false);
+const discoverOpen = ref(false);
 
 const filtered = computed(() => {
   if (selected.value === 'all') return [...show.fixtures].sort((a, b) => a.number - b.number);
@@ -56,22 +57,9 @@ onMounted(async () => {
   }
 });
 
-async function discover() {
-  discovering.value = true;
-  try {
-    const { added } = await api.discoverFixtures();
-    await loadInventory();
-    void refreshReachability();
-    toastOk(
-      added
-        ? `Discovered — ${added} new fixture${added === 1 ? '' : 's'}`
-        : 'Discovery — no new fixtures',
-    );
-  } catch (e) {
-    toastError((e as Error).message);
-  } finally {
-    discovering.value = false;
-  }
+async function onDiscovered() {
+  await loadInventory();
+  void refreshReachability();
 }
 
 function openAdd() {
@@ -169,9 +157,7 @@ async function removeGroup(id: string) {
       :subtitle="`${show.fixtures.length} fixture${show.fixtures.length === 1 ? '' : 's'} · ${show.groups.length} group${show.groups.length === 1 ? '' : 's'}`"
     >
       <template #actions>
-        <Button variant="secondary" :icon="Radar" :loading="discovering" @click="discover">
-          {{ discovering ? 'Scanning…' : 'Discover' }}
-        </Button>
+        <Button variant="secondary" :icon="Radar" @click="discoverOpen = true">Discover</Button>
         <Button variant="primary" :icon="Plus" @click="openAdd">Add fixture</Button>
       </template>
     </ScreenHeader>
@@ -240,13 +226,19 @@ async function removeGroup(id: string) {
         {{ selected === 'all' ? 'No fixtures yet.' : 'No fixtures in this group.' }}
       </p>
       <div v-if="selected === 'all'" class="flex gap-2">
-        <Button variant="secondary" :icon="Radar" :loading="discovering" @click="discover"
+        <Button variant="secondary" :icon="Radar" @click="discoverOpen = true"
           >Discover on LAN</Button
         >
         <Button variant="primary" :icon="Plus" @click="openAdd">Add manually</Button>
       </div>
     </div>
 
+    <DiscoverModal
+      :open="discoverOpen"
+      :existing="show.fixtures"
+      @close="discoverOpen = false"
+      @added="onDiscovered"
+    />
     <FixtureFormModal
       :open="formOpen"
       :fixture="editing"
