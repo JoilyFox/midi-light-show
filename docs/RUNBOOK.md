@@ -12,10 +12,12 @@ arrangement** (Am–F–C–G) plays, and its **LIGHTS** track (routed to IAC) p
 brightness. We control Ableton **directly via the AbletonMCP remote-script socket** (`scripts/ableton_ctl.py`), not the
 Claude Code MCP. Everything is verified working end-to-end.
 
-**Since (2026-07):** a **Filament** design system + a **Vue 3 + Vite** UI now live in `web/` (component library +
-`/components` showcase — `cd web && npm run dev` → :5173, see §1b). Docs gained a concept KB under `docs/concepts/`
-(reconcile with `/sync-docs`); guard hooks + skills are wired. Repo: **github.com/JoilyFox/midi-light-show**
-(push over HTTPS via `gh`, **not** SSH — the machine SSH key = `bohdan-pn`, no access).
+**Since (2026-07):** the **Filament console** (Vue 3 + Vite SPA in `web/`) is now the primary UI, with four screens —
+**Rig** (fixture/group inventory), **Play** (manual control), **Map** (MIDI mapping + Learn), **Log** (live monitor).
+The engine **serves the built SPA at :8080** (`npm run serve` builds it + starts the engine); for UI dev use
+`cd web && npm run dev` → :5173 (see §1b). Fixtures now have **stable ids** (mappings target id/group/IP/`*`). Docs
+gained a concept KB under `docs/concepts/` (reconcile with `/sync-docs`); guard hooks + skills are wired. Repo:
+**github.com/JoilyFox/midi-light-show** (push over HTTPS via `gh`, **not** SSH — the machine SSH key = `bohdan-pn`, no access).
 
 ---
 
@@ -23,8 +25,12 @@ Claude Code MCP. Everything is verified working end-to-end.
 ```bash
 cd "/Users/bohdan/Documents/Claude Agents/midi-light-show"
 npm install            # first time only
-npm start              # → http://localhost:8080   (Manual / MIDI Bridge / Reference tabs)
+npm run serve          # build the Filament SPA + start engine → http://localhost:8080
+# or, if web/dist already built:
+npm start              # → http://localhost:8080   (serves web/dist; falls back to legacy public/)
 ```
+The boot log prints which UI it served (`Filament SPA (web/dist)` or `legacy vanilla (public/)`). If it says
+legacy, run `npm run build:web` once. For live UI development use §1b (Vite on :5173) instead.
 **Restart correctly (this bit a lot):**
 ```bash
 pkill -9 -f "src/server.ts"; sleep 1     # kill stale process FIRST

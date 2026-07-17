@@ -28,6 +28,7 @@
  */
 
 import express from 'express';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { ShowEngine } from './engine/showEngine';
@@ -39,7 +40,12 @@ const PORT = Number(process.env.PORT ?? 8080);
 const engine = new ShowEngine();
 const app = express();
 app.use(express.json());
-app.use(express.static(join(__dirname, '..', 'public')));
+
+// UI: prefer the built Filament SPA (web/dist); fall back to the legacy vanilla UI (public/).
+// Run `npm run build:web` to produce web/dist. Hash routing → no history fallback needed.
+const spaDir = join(__dirname, '..', 'web', 'dist');
+const uiDir = existsSync(join(spaDir, 'index.html')) ? spaDir : join(__dirname, '..', 'public');
+app.use(express.static(uiDir));
 
 // ---- manual control ----
 app.get('/api/discover', async (_req, res) => {
@@ -181,7 +187,10 @@ app.get('/api/midi/stream', (req, res) => {
 await engine.load();
 app.listen(PORT, () => {
   console.log(`\n  🎛️  MIDI Light Show — control + bridge`);
-  console.log(`  ▶  http://localhost:${PORT}\n`);
+  console.log(`  ▶  http://localhost:${PORT}`);
+  console.log(
+    `  UI: ${uiDir.endsWith('dist') ? 'Filament SPA (web/dist)' : 'legacy vanilla (public/) — run `npm run build:web`'}\n`,
+  );
   console.log(
     `  MIDI port: ${engine.midi.currentName() ?? '(none selected — open the MIDI tab)'}\n`,
   );

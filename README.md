@@ -4,36 +4,43 @@ Control smart lamps / LED fixtures over local WiFi to perform **live light-music
 
 **Goal:** tight, on-the-beat sync (**<~50 ms** end-to-end).
 
-## Status: Phase 1 — manual MVP + MIDI bridge ✅
+## Status: Filament console ✅ (engine + full 4-screen UI)
 
 | Area | State |
 |------|-------|
 | Project context (`CLAUDE.md`) | ✅ written |
 | Deep research (`docs/RESEARCH.md`) | ✅ done |
-| WiZ local-control MVP (UI + server) | ✅ built & tested |
-| MIDI → light bridge + config UI | ✅ built & tested (`docs/MIDI-BRIDGE.md`) |
+| WiZ local-control engine + MIDI bridge | ✅ built & tested (`docs/MIDI-BRIDGE.md`) |
+| Fixture inventory + groups (stable ids) | ✅ built & tested |
+| **Filament** design system + Vue 3 SPA | ✅ Rig · Play · Map · Log |
 | Hardware decision (ESP32/WLED) | ✅ researched (`docs/HARDWARE.md`) |
 
-## Run the control panel
+## Run it
 
 ```bash
-npm install        # first time
-npm start          # → http://localhost:8080  (or: npm run dev to auto-reload)
+npm install          # first time (engine deps)
+npm run serve        # build the SPA + start the engine → http://localhost:8080
 ```
 
-**Manual tab:** Discover → pick your WiZ bulb → on/off, color picker, brightness, swatches, white presets. Local UDP, no cloud.
+`npm run serve` builds the Filament UI (`web/`) and serves it from the engine at **http://localhost:8080**.
+For UI development with hot-reload, run the engine (`npm start`) and Vite together (`cd web && npm run dev`
+→ http://localhost:5173, which proxies `/api` to the engine).
 
-**MIDI Bridge tab:** pick a MIDI input → **Learn** a control → map it to an action.
-- Actions: **Fade / On-Off**, **Toggle**, **Color** (hue-from-value or fixed), **Brightness**, **White temp**.
-- Fade speed is indexed by **ms per unit**: `10` → value 100 = **1 s** (on/off feel), `1000` → value 100 = **100 s** (slow fade).
-- Fade time can come from the triggering control, a fixed value, or **a second CC** ("time depends on another knob").
-- Engine rate-limits + send-on-change so WiZ doesn't flicker. Mappings persist to `config/show.json`.
+### The console (four screens)
+- **Rig** — your fixtures + groups. Discover on the LAN, add/edit by hand, blink-to-identify. Fixtures have a
+  **stable id** independent of their IP, so DHCP moves don't break your show.
+- **Play** — manual control of any fixture / group / all: power, brightness, color, white temp, flash. Tiles
+  glow with the real live color (streamed over SSE). Slider sends are throttled so WiZ isn't flooded.
+- **Map** — MIDI → light mappings with **MIDI-Learn**: Fade, Toggle, Pulse, Color, Brightness, White temp.
+  Target a fixture, a group, or all. Fade speed indexed by **ms per unit** (`10` → value 100 = 1 s; `1000` →
+  100 s); duration can come from the control, a fixed value, or a second CC.
+- **Log** — live MIDI monitor + input-port picker.
 
 **Drive it from a DAW:** enable the macOS **IAC Driver** (Audio MIDI Setup → MIDI Studio), point Ableton/Cubase
-MIDI-out at the IAC bus, then select it in the MIDI tab.
+MIDI-out at the IAC bus, then pick it on the **Log** screen.
 
-**Stack:** TypeScript + Node (`dgram` UDP) + Express + `tsx`; vanilla-JS UI. The WiZ logic lives behind a
-pluggable `FixtureDriver` (`src/types.ts`) so WLED/DMX drivers slot in later without touching the UI/engine.
+**Stack:** engine = TypeScript + Node (`dgram` UDP) + Express + `tsx`; UI = Vue 3 + Vite + Tailwind v4 (Filament
+design system, `web/`). WiZ lives behind a pluggable `FixtureDriver` (`src/types.ts`) so WLED/DMX slot in later.
 
 ## Quick orientation
 
@@ -55,7 +62,7 @@ DAW (Ableton/Cubase) ──MIDI──▶ virtual port (IAC) ──▶ controller
 
 ## Next steps
 
-1. Finish deep research → fill `docs/RESEARCH.md`.
-2. Spike: discover the WiZ bulb on LAN + measure local UDP round-trip latency (`scripts/`).
-3. Go/no-go on WiZ for tight sync; pick the show-device default.
-4. MIDI bridge spike (IAC → color change).
+1. Ableton Link beat-lock (tighter than MIDI clock) for on-the-beat shows.
+2. **Phase 2 hardware:** ESP32 + WLED (DDP) driver behind the same `FixtureDriver` — the real path to
+   sub-50 ms beat sync (WiZ stays a scene/mood device; see `docs/RESEARCH.md`).
+3. Per-mapping "test fire" + scenes/banks.

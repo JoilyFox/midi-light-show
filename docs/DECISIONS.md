@@ -5,6 +5,23 @@ Format: date · decision · why · status.
 
 ---
 
+## 2026-07-17 · App build Phases 3–7 — fixture inventory + Filament console, SPA served by the engine
+**Decision:** Build out the full console app in phases: **(3)** a persisted fixture inventory + groups with
+**stable, IP-independent ids** (mappings target `fx_`/`grp_`/IP/`*`, resolved by `resolveTargets`; a one-time
+idempotent migration seeds fixtures from legacy IP-referencing mappings); **(4)** a dependency-light SPA shell
+(hash router + one reactive store + a typed API client) with the **Rig** screen; **(5)** the **Play** screen +
+a `fixtureState` **SSE** channel so tiles show live output (manual `POST /api/state` routed through
+`engine.manualSet`); **(6)** **Map** (mapping editor + MIDI-Learn) + **Log** (live monitor); **(7)** the engine
+serves the built SPA (`web/dist`) at **:8080**, falling back to the legacy vanilla `public/` UI.
+**Why:** Ids-not-IPs keeps shows stable across DHCP moves (QLC+-style patch identity). One SSE stream + one store
+avoids state libraries for a single-user tool. Serving the SPA from the engine means one process, one URL, and no
+CORS; hash routing means no server-side history fallback. UI slider sends are throttled (~18/s) so WiZ isn't flooded
+(the same constraint that drives the engine's send-on-change).
+**Gotchas:** the mapping editor keeps all action fields populated (cosmetic `show.json` bloat, harmless); the live
+map is keyed by IP while the inventory is keyed by id (cross via `fixture.ip`).
+**Status:** Adopted; all phases built, typechecked, and verified end-to-end (migration, CRUD, live SSE via a dummy
+IP, live MIDI monitor, SPA served at :8080). `web/dist/` gitignored — build with `npm run serve` / `npm run build:web`.
+
 ## 2026-07-17 · Frontend = Vue 3 + Vite SPA + Tailwind v4 (reject Nuxt/Next/NestJS-template; drop SCSS)
 **Decision:** Build the UI as a client-only **Vue 3 + Vite** SPA in `web/`, styled with **Tailwind v4** (CSS-first
 `@theme` tokens) + **tailwind-variants** + a `cn()` helper (clsx + tailwind-merge) + **@lucide/vue** icons. Components

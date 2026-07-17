@@ -34,7 +34,7 @@ Entry point for the concept knowledge base. Start at [[architecture-overview]], 
 ## 05 — UI · `concepts/05-ui/`
 - [[frontend-stack]] ✅ — Vue 3 + Vite SPA, Tailwind v4, tailwind-variants
 - [[component-library-pattern]] ✅ — variants via props, tokens as one source of truth
-- [[console-app-structure]] 🟡 — shell + hash router + reactive store + typed API client
+- [[console-app-structure]] ✅ — shell + hash router + reactive store + typed API client (served at :8080)
 - [[midi-mapping-ui]] ✅ — Map (mapping editor + Learn) + Log (live MIDI monitor + port select)
 - [[live-monitor-sse]] ⭕ — streaming MIDI events into the UI (see [[midi-mapping-ui]])
 

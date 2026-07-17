@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from '@/lib/router';
-import { loadMidiPorts, connectStream, disconnectStream } from '@/lib/store';
+import {
+  loadInventory,
+  loadMappings,
+  loadMidiPorts,
+  loadLive,
+  connectStream,
+  disconnectStream,
+} from '@/lib/store';
 import ConsoleShell from '@/components/console/ConsoleShell.vue';
 import ToastHost from '@/components/ui/ToastHost.vue';
 import RigScreen from '@/pages/RigScreen.vue';
@@ -21,8 +28,12 @@ const screens = {
 const current = computed(() => screens[route.value]);
 
 onMounted(() => {
+  connectStream(); // one SSE connection for the whole app
+  // Warm the store so cross-screen actions (e.g. shell Blackout) work before visiting a screen.
+  void loadInventory();
+  void loadMappings();
   void loadMidiPorts();
-  connectStream();
+  void loadLive();
 });
 onBeforeUnmount(() => disconnectStream());
 </script>

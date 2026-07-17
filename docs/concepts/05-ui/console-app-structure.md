@@ -3,7 +3,7 @@ id: console-app-structure
 title: Console app structure (shell, router, store, API client)
 category: 05-ui
 tags: [cat/ui, spa, state, api]
-status: partial
+status: current
 code:
   [
     web/src/App.vue,

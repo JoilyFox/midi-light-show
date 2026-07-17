@@ -124,18 +124,26 @@ midi-light-show/
 
 ## 10. Status
 
-- **App build (2026-07) — Filament UI + tooling ✅ (app-plan Phases 0–2):**
+- **App build (2026-07) — Filament console ✅ (app-plan Phases 0–7 COMPLETE):**
   - **Docs KB + tooling (Phase 0):** `docs/concepts/` concept notes (`_SCHEMA`/`_MAP`/`sources-index`); Claude Code
     hooks (`block-dangerous-bash`, gitleaks `commit-gate`, `docs-staleness` nudge); skills (`sync-docs`, `run-bridge`,
     `latency-audit`); Prettier/editorconfig/nvmrc + scoped permissions. Reconcile docs with `/sync-docs`.
-  - **Filament design system (Phase 1)** documented in `docs/concepts/04-design-system/` and **implemented (Phase 2)**
-    in `web/` as a **Vue 3 + Vite + Tailwind v4** component library (Button/Chip/Card/Fader/StatusDot/NavButton/Icon/
-    GroupChip/**FixtureTile**) + a `/components` showcase. Run: `cd web && npm run dev` → http://localhost:5173
-    (proxies `/api` to the engine on :8080). Engine UI still on :8080 until Phase 3 wires the SPA in.
+  - **Filament design system (Phase 1–2):** documented in `docs/concepts/04-design-system/`, implemented in `web/`
+    as a **Vue 3 + Vite + Tailwind v4** component library + `/components` showcase.
+  - **Fixture inventory (Phase 3):** persisted `fixtures`/`groups` in `config/show.json` with **stable IP-independent
+    ids**; CRUD API (`/api/fixtures`, `/api/groups`), discover-merge, blink-identify; mappings target `fx_`/`grp_`/IP/`*`
+    via `resolveTargets`; one-time legacy migration. See `docs/concepts/02-engine/fixture-inventory.md`.
+  - **Console SPA (Phase 4–6):** shell (left rail + status bar + hash router + reactive store + typed API client) with
+    four screens — **Rig** (fixture/group CRUD, discover, identify), **Play** (manual power/brightness/color/temp/flash,
+    WiZ-safe throttled sends, live tiles), **Map** (mapping editor + MIDI-Learn), **Log** (live MIDI monitor + port
+    select). Live output streamed via a `fixtureState` SSE channel (`docs/concepts/02-engine/live-output-stream.md`,
+    `05-ui/console-app-structure.md`, `05-ui/midi-mapping-ui.md`).
+  - **Integration (Phase 7):** the engine serves the built SPA (`web/dist`) at **:8080** (falls back to legacy
+    `public/`). Run everything with **`npm run serve`** (builds the SPA + starts the engine). Dev with hot-reload:
+    `npm start` + `cd web && npm run dev` (:5173, proxies `/api`).
   - **Git:** repo at **github.com/JoilyFox/midi-light-show** (`main`); push over **HTTPS via `gh`**, not SSH (see
-    DECISIONS 2026-07-16). `vendor/`, `config/`, `.claude/settings.local.json` gitignored.
-  - **Next — app Phase 3:** fixture inventory — persisted `fixtures`/`groups` + CRUD API + a Fixtures UI on Filament
-    (first phase to touch the engine).
+    DECISIONS 2026-07-16). `vendor/`, `config/`, `web/dist/`, `.claude/settings.local.json` gitignored.
+  - **Next:** Ableton Link beat-lock → Phase 2 hardware (ESP32 + WLED/DDP driver) for real <50 ms beat sync.
 - **Phase 0 ✅:** Scaffold + deep research done (`docs/RESEARCH.md`). Verdict above.
 - **Phase 1 ✅ (manual MVP + MIDI bridge built):** TypeScript/Node controller. `npm install` then `npm start`
   → http://localhost:8080. Two tabs: **Manual** (on/off, color, brightness, white) and **MIDI Bridge**
@@ -152,7 +160,8 @@ midi-light-show/
   to load the `ableton` tools. Live's API can't author MIDI-CC clip envelopes → we emit CC live (Path A) + use
   velocity-encoded note clips for song-synced shows (Path C).
 - **To run live with a DAW:** enable macOS **IAC Driver** (Audio MIDI Setup), point Ableton/Cubase MIDI-out at it,
-  pick it in the MIDI tab, Learn a control, map it. (WiZ stays a scene/mood device — tight beat hits await WLED.)
+  pick it on the **Log** screen, then Learn + map a control on **Map**. (WiZ stays a scene/mood device — tight beat
+  hits await WLED.)
 
 ---
 _Last updated: 2026-07-17. Keep §9 and §10 current._
