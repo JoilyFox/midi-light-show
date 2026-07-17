@@ -37,9 +37,10 @@ const styleVars = computed(() => ({ '--c': props.color, '--b': String(level.valu
     </div>
     <div class="bulb" aria-hidden="true" />
     <div class="mt-auto text-[14.5px] font-semibold tracking-[-.01em]">{{ name }}</div>
-    <div class="flex items-center justify-between gap-2">
-      <Chip size="sm">{{ midi ?? '—' }}</Chip>
-      <span class="font-mono text-xs text-text-dim tabular-nums">{{ pctLabel }}</span>
+    <div class="flex items-center gap-2">
+      <!-- MIDI-assignment chip: only shown once a mapping actually targets this fixture -->
+      <Chip v-if="midi" size="sm">{{ midi }}</Chip>
+      <span class="ml-auto font-mono text-xs text-text-dim tabular-nums">{{ pctLabel }}</span>
     </div>
   </div>
 </template>
