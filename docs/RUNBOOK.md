@@ -42,9 +42,11 @@ node experiments/sse_listen.mjs          # prints MIDI events the bridge receive
 
 ## 1b. Run the Filament UI (`web/` — Vue 3 + Vite, app Phase 3+)
 The new UI lives in `web/`, separate from the engine. It boots into the **console shell** (left rail: Rig / Play / Map /
-Log + a UI/showcase link, global status bar with engine-live dot, MIDI port chip, and Blackout). **Rig** is fully wired
-(fixture + group CRUD, LAN discover, blink-to-identify); **Play/Map/Log** are placeholders until Phases 5–6. The
-`#/components` route keeps the component showcase. Structure: `docs/concepts/05-ui/console-app-structure.md`.
+Log + a UI/showcase link, global status bar with engine-live dot, MIDI port chip, and Blackout). **All four screens are
+wired:** **Rig** (fixture + group CRUD, LAN discover, blink-to-identify), **Play** (per-target power/brightness/color/
+temp/flash with live tiles), **Map** (mapping editor + MIDI-Learn), **Log** (live MIDI monitor + port select). The
+`#/components` route keeps the component showcase. Structure: `docs/concepts/05-ui/console-app-structure.md` +
+`midi-mapping-ui.md`.
 ```bash
 cd "/Users/bohdan/Documents/Claude Agents/midi-light-show/web"
 npm install            # first time only

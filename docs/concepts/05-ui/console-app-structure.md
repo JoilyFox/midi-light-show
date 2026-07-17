@@ -60,9 +60,10 @@ deliberately dependency-light: no Vuex/Pinia, no vue-router — a single `reacti
   fans out duplicate listeners.
 
 ## Status & TODO
-- Done: shell, router, store, API client, toasts, **Rig** (fixture + group CRUD, discover, identify),
-  **Play** (per-target power/brightness/color/temp/flash, WiZ-safe throttled sends, live tiles via SSE).
-- TODO: Map + Log (Phase 6).
+- Done: shell, router, store, API client, toasts, and all four screens — **Rig** (fixture + group CRUD,
+  discover, identify), **Play** (per-target manual control + live tiles), **Map** + **Log**
+  (see [[midi-mapping-ui]]).
+- TODO: fold the vanilla `public/` UI out once the engine serves the SPA (Phase 7).
 
 ## See also
 - [[component-library-pattern]] — the prop-driven components the screens compose

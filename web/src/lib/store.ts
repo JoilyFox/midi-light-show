@@ -12,6 +12,13 @@ interface LiveState {
   on: boolean;
 }
 
+interface LoggedMidi extends MidiEvent {
+  t: number;
+  seq: number;
+}
+
+const MIDI_LOG_CAP = 250;
+
 const state = reactive({
   fixtures: [] as Fixture[],
   groups: [] as Group[],
@@ -20,9 +27,18 @@ const state = reactive({
   midiCurrent: null as string | null,
   online: new Set<string>(), // fixture ips that answered the last discover probe
   live: new Map<string, LiveState>(), // ip → live output (from SSE)
+  midiLog: [] as LoggedMidi[], // newest first, capped (Log monitor)
+  lastMidi: null as MidiEvent | null, // most recent event (MIDI-Learn watches this)
+  appliedTick: 0, // bumped on each mapping hit (row flash)
+  lastAppliedId: null as string | null,
   connected: false, // SSE connected
   loaded: false,
 });
+
+let midiSeq = 0;
+export function clearMidiLog(): void {
+  state.midiLog = [];
+}
 
 export function useShow() {
   return state;
@@ -108,6 +124,12 @@ export function connectStream(): void {
   closeStream = openMidiStream({
     onOpen: () => (state.connected = true),
     onError: () => (state.connected = false),
+    onMidi: (e) => {
+      const ev = e as MidiEvent;
+      state.lastMidi = ev;
+      state.midiLog.unshift({ ...ev, t: Date.now(), seq: ++midiSeq });
+      if (state.midiLog.length > MIDI_LOG_CAP) state.midiLog.length = MIDI_LOG_CAP;
+    },
     onFixtureState: (s) => {
       const f = s as {
         ip: string;
@@ -117,8 +139,9 @@ export function connectStream(): void {
       };
       state.live.set(f.ip, { on: f.on, brightness: f.brightness, color: f.color });
     },
-    onApplied: () => {
-      /* mapping hit — screens may flash tiles; handled per-screen */
+    onApplied: (a) => {
+      state.lastAppliedId = (a as { mappingId?: string }).mappingId ?? null;
+      state.appliedTick++;
     },
   });
 }
