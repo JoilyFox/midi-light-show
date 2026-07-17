@@ -58,6 +58,15 @@ deliberately dependency-light: no Vuex/Pinia, no vue-router — a single `reacti
   **id** — cross via `fixture.ip`. `midiLabelFor` shows `CH· · N·` for wildcard mappings (null channel/number).
 - SSE is opened once in `App.onMounted`; screens must not open their own `EventSource` or the engine
   fans out duplicate listeners.
+- **Never `structuredClone()` a value taken from the reactive store** (fixtures/mappings are Vue
+  `reactive` Proxies → `DataCloneError`). Use `JSON.parse(JSON.stringify(x))` — the data is plain JSON.
+  Editors/duplicators clone before mutating so the store isn't touched until save.
+- The shared `Modal.vue` is a flex column capped at `max-h-[calc(100dvh-2rem)]`: header + footer are
+  `shrink-0` and the body is `flex-1 overflow-y-auto`, so tall editors scroll instead of clipping. Fix it
+  there once, not per-modal.
+- Interaction affordances: a **Rig** tile click toggles the bulb on/off (edit is on the pencil); **Play**
+  uses plain click = select one, **Shift-click** = add/remove from a multi-selection. `hydrateLive()`
+  (getPilot per fixture) seeds real on/off/colour so those toggles start from the true state.
 
 ## Status & TODO
 - Done: shell, router, store, API client, toasts, and all four screens — **Rig** (fixture + group CRUD,

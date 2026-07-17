@@ -85,6 +85,30 @@ export async function loadLive(): Promise<void> {
   }
 }
 
+/**
+ * Read each fixture's actual current state from the bulb (getPilot) and merge it into the live map,
+ * so tiles show real on/off/colour on load — and a click-to-toggle knows the true starting state.
+ */
+export async function hydrateLive(): Promise<void> {
+  await Promise.all(
+    state.fixtures.map(async (f) => {
+      try {
+        const { state: s } = await api.getState(f.ip);
+        if (!s) return;
+        const on = !!s.state;
+        const brightness = typeof s.dimming === 'number' ? s.dimming : 0;
+        const hasRgb = s.r != null || s.g != null || s.b != null;
+        const color = hasRgb
+          ? { r: Number(s.r ?? 0), g: Number(s.g ?? 0), b: Number(s.b ?? 0) }
+          : state.live.get(f.ip)?.color;
+        state.live.set(f.ip, { on, brightness, color });
+      } catch {
+        /* unreachable bulb — leave whatever we knew */
+      }
+    }),
+  );
+}
+
 // ---- derived helpers ----
 export const fixtureById = (id: string) => state.fixtures.find((f) => f.id === id);
 

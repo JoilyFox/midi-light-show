@@ -6,6 +6,7 @@ import {
   loadInventory,
   loadMappings,
   loadLive,
+  hydrateLive,
   refreshReachability,
   midiLabelFor,
   isOnline,
@@ -23,31 +24,57 @@ import GroupChip from '@/components/ui/GroupChip.vue';
 import FixtureTile from '@/components/ui/FixtureTile.vue';
 
 const show = useShow();
-const target = ref<'all' | string>('all');
+
+// The controls act on whichever fixtures are selected. Chips set the selection to
+// all / a group; a plain tile click selects just that one; shift-click adds/removes.
+const selected = ref<Set<string>>(new Set());
 
 const brightness = ref(80);
 const hex = ref('#FFB25C');
 const temp = ref(3200);
 
-const targetFixtures = computed<Fixture[]>(() => {
-  const byNum = (a: Fixture, b: Fixture) => a.number - b.number;
-  if (target.value === 'all') return [...show.fixtures].sort(byNum);
-  if (target.value.startsWith('grp_')) {
-    const g = show.groups.find((x) => x.id === target.value);
-    const ids = new Set(g?.fixtureIds ?? []);
-    return show.fixtures.filter((f) => ids.has(f.id)).sort(byNum);
-  }
-  const f = show.fixtures.find((x) => x.id === target.value);
-  return f ? [f] : [];
-});
+const allFixtures = computed(() => [...show.fixtures].sort((a, b) => a.number - b.number));
+const targetFixtures = computed(() => allFixtures.value.filter((f) => selected.value.has(f.id)));
 const targetIps = computed(() => [...new Set(targetFixtures.value.map((f) => f.ip))]);
+
+const allActive = computed(
+  () => show.fixtures.length > 0 && selected.value.size === show.fixtures.length,
+);
+function groupActive(g: { fixtureIds: string[] }): boolean {
+  return (
+    g.fixtureIds.length > 0 &&
+    selected.value.size === g.fixtureIds.length &&
+    g.fixtureIds.every((id) => selected.value.has(id))
+  );
+}
 const targetLabel = computed(() => {
-  if (target.value === 'all') return 'all fixtures';
-  if (target.value.startsWith('grp_'))
-    return show.groups.find((g) => g.id === target.value)?.name ?? 'group';
-  return show.fixtures.find((f) => f.id === target.value)?.name ?? 'fixture';
+  if (allActive.value) return 'all fixtures';
+  const g = show.groups.find((x) => groupActive(x));
+  if (g) return g.name;
+  if (selected.value.size === 1) {
+    const f = targetFixtures.value[0];
+    return f ? f.name : '1 fixture';
+  }
+  return `${selected.value.size} selected`;
 });
-const isTargeted = (f: Fixture) => targetFixtures.value.some((t) => t.id === f.id);
+const isSelected = (f: Fixture) => selected.value.has(f.id);
+
+function selectAll() {
+  selected.value = new Set(show.fixtures.map((f) => f.id));
+}
+function selectGroup(g: { fixtureIds: string[] }) {
+  const known = new Set(show.fixtures.map((f) => f.id));
+  selected.value = new Set(g.fixtureIds.filter((id) => known.has(id)));
+}
+function onTileClick(f: Fixture, e: MouseEvent) {
+  if (e.shiftKey) {
+    const next = new Set(selected.value);
+    next.has(f.id) ? next.delete(f.id) : next.add(f.id); // toggle in/out of the multi-selection
+    selected.value = next;
+  } else {
+    selected.value = new Set([f.id]);
+  }
+}
 
 function hexToRgb(h: string) {
   const n = parseInt(h.replace('#', ''), 16);
@@ -101,9 +128,9 @@ function tileColor(f: Fixture): string {
 }
 const tileBright = (f: Fixture) => (liveFor(f.ip)?.brightness ?? 0) / 100;
 
-// When the target changes, seed the controls from the first target's live state.
+// When the selection changes, seed the controls from the first selected fixture's live state.
 watch(
-  target,
+  () => [...selected.value][0],
   () => {
     const first = targetFixtures.value[0];
     const live = first ? liveFor(first.ip) : undefined;
@@ -112,13 +139,14 @@ watch(
       if (live.color) hex.value = rgbToHex(live.color);
     }
   },
-  { immediate: false },
 );
 
 onMounted(async () => {
   try {
     await Promise.all([loadInventory(), loadMappings(), loadLive()]);
+    selectAll(); // start with everything selected
     void refreshReachability();
+    void hydrateLive();
   } catch (e) {
     toastError((e as Error).message);
   }
@@ -133,20 +161,24 @@ onMounted(async () => {
     />
 
     <!-- target scope -->
-    <div class="flex flex-wrap items-center gap-2 mb-6">
-      <GroupChip :active="target === 'all'" :count="show.fixtures.length" @click="target = 'all'"
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <GroupChip :active="allActive" :count="show.fixtures.length" @click="selectAll"
         >All</GroupChip
       >
       <GroupChip
         v-for="g in show.groups"
         :key="g.id"
-        :active="target === g.id"
+        :active="groupActive(g)"
         :count="g.fixtureIds.length"
-        @click="target = g.id"
+        @click="selectGroup(g)"
       >
         {{ g.name }}
       </GroupChip>
     </div>
+    <p class="text-[12px] text-text-mute mb-6">
+      Click a lamp to control just it · <kbd class="font-mono text-text-dim">Shift</kbd>-click to
+      select several.
+    </p>
 
     <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
       <!-- control panel -->
@@ -203,14 +235,14 @@ onMounted(async () => {
       </Card>
 
       <!-- live fixtures -->
-      <div v-if="targetFixtures.length || show.fixtures.length">
+      <div v-if="allFixtures.length">
         <div class="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-4">
           <button
-            v-for="f in [...show.fixtures].sort((a, b) => a.number - b.number)"
+            v-for="f in allFixtures"
             :key="f.id"
             class="text-left rounded-[15px] transition-shadow"
-            :class="isTargeted(f) ? 'ring-2 ring-filament ring-offset-2 ring-offset-ink' : ''"
-            @click="target = f.id"
+            :class="isSelected(f) ? 'ring-2 ring-filament ring-offset-2 ring-offset-ink' : ''"
+            @click="onTileClick(f, $event)"
           >
             <FixtureTile
               :number="f.number"
@@ -219,6 +251,7 @@ onMounted(async () => {
               :brightness="tileBright(f)"
               :midi="midiLabelFor(f.id)"
               :online="isOnline(f.ip)"
+              :on="liveFor(f.ip)?.on"
             />
           </button>
         </div>

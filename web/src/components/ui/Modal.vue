@@ -29,12 +29,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         @click.self="emit('close')"
       >
         <div
-          class="w-full bg-panel border border-line rounded-[15px] shadow-[0_30px_80px_-20px_rgba(0,0,0,.8)] overflow-hidden"
+          class="w-full max-h-[calc(100dvh-2rem)] flex flex-col bg-panel border border-line rounded-[15px] shadow-[0_30px_80px_-20px_rgba(0,0,0,.8)] overflow-hidden"
           :style="{ maxWidth: (width ?? 460) + 'px' }"
           role="dialog"
           aria-modal="true"
         >
-          <header class="flex items-center justify-between px-5 h-14 border-b border-line-soft">
+          <header
+            class="shrink-0 flex items-center justify-between px-5 h-14 border-b border-line-soft"
+          >
             <h2 class="text-[15px] font-semibold tracking-[-.01em]">{{ title }}</h2>
             <Button
               variant="ghost"
@@ -45,10 +47,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               @click="emit('close')"
             />
           </header>
-          <div class="p-5"><slot /></div>
+          <!-- body scrolls when it's taller than the viewport; header/footer stay pinned -->
+          <div class="flex-1 min-h-0 overflow-y-auto p-5"><slot /></div>
           <footer
             v-if="$slots.footer"
-            class="flex items-center justify-end gap-2 px-5 py-4 border-t border-line-soft bg-ink-2/40"
+            class="shrink-0 flex items-center justify-end gap-2 px-5 py-4 border-t border-line-soft bg-ink-2/40"
           >
             <slot name="footer" />
           </footer>

@@ -83,7 +83,9 @@ watch(
       return;
     }
     confirmDelete.value = false;
-    Object.assign(m, blank(), props.mapping ? structuredClone(props.mapping) : {});
+    // JSON clone (not structuredClone) — props.mapping is a Vue reactive Proxy, which
+    // structuredClone cannot clone (DataCloneError). Mappings are plain JSON data.
+    Object.assign(m, blank(), props.mapping ? JSON.parse(JSON.stringify(props.mapping)) : {});
     if (m.action === 'temp' && props.mapping && props.mapping.min == null) {
       m.min = 2200;
       m.max = 6500;

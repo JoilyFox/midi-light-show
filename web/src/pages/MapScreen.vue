@@ -72,8 +72,9 @@ async function toggleEnabled(m: Mapping, enabled: boolean) {
   await persist(show.mappings.map((x) => (x.id === m.id ? { ...x, enabled } : x)));
 }
 async function duplicate(m: Mapping) {
+  // JSON clone: `m` is a reactive Proxy (structuredClone would throw DataCloneError).
   const copy: Mapping = {
-    ...structuredClone(m),
+    ...(JSON.parse(JSON.stringify(m)) as Mapping),
     id: 'map_' + Date.now().toString(36),
     label: (m.label ?? '') + ' copy',
   };

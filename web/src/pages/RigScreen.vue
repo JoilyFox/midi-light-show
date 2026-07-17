@@ -6,6 +6,7 @@ import {
   loadInventory,
   loadMappings,
   refreshReachability,
+  hydrateLive,
   midiLabelFor,
   isOnline,
   liveFor,
@@ -47,11 +48,28 @@ function tileColor(f: Fixture): string {
 function tileBrightness(f: Fixture): number {
   return (liveFor(f.ip)?.brightness ?? 0) / 100;
 }
+/** on/off for the tile: known live state, else undefined (tile renders as on). */
+function liveOn(f: Fixture): boolean | undefined {
+  return liveFor(f.ip)?.on;
+}
+
+/** Click a card to switch the bulb on/off (no need to open the Play tab). */
+async function togglePower(f: Fixture) {
+  const cur = liveFor(f.ip);
+  const next = !(cur?.on ?? false); // unknown → first click turns on
+  try {
+    await api.setState(f.ip, next ? { on: true } : { on: false });
+    // manualSet emits a fixtureState SSE → the tile updates itself; no manual refresh needed.
+  } catch (e) {
+    toastError((e as Error).message);
+  }
+}
 
 onMounted(async () => {
   try {
     await Promise.all([loadInventory(), loadMappings()]);
     void refreshReachability();
+    void hydrateLive(); // read real on/off/colour so tiles + toggle reflect reality
   } catch (e) {
     toastError((e as Error).message);
   }
@@ -60,6 +78,7 @@ onMounted(async () => {
 async function onDiscovered() {
   await loadInventory();
   void refreshReachability();
+  void hydrateLive();
 }
 
 function openAdd() {
@@ -192,7 +211,9 @@ async function removeGroup(id: string) {
           :brightness="tileBrightness(f)"
           :midi="midiLabelFor(f.id)"
           :online="isOnline(f.ip)"
-          @click="openEdit(f)"
+          :on="liveOn(f)"
+          title="Click to turn on/off"
+          @click="togglePower(f)"
         />
         <!-- hover actions (siblings of the clipped tile so they can overflow) -->
         <div
