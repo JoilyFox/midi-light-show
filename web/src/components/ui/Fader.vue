@@ -3,7 +3,13 @@ import { computed } from 'vue';
 import { cn } from '@/lib/cn';
 
 // Vertical brightness/level fader — chunky, live, mono value. Display component (wire input in Phase 3).
-const props = defineProps<{ value: number; min?: number; max?: number; label?: string; class?: string }>();
+const props = defineProps<{
+  value: number;
+  min?: number;
+  max?: number;
+  label?: string;
+  class?: string;
+}>();
 const pct = computed(() => {
   const min = props.min ?? 0;
   const max = props.max ?? 100;
@@ -13,7 +19,9 @@ const pct = computed(() => {
 
 <template>
   <div :class="cn('flex flex-col items-center gap-3', props.class)">
-    <div class="relative w-3 h-[230px] rounded-full bg-[#0d0f12] border border-line overflow-hidden">
+    <div
+      class="relative w-3 h-[230px] rounded-full bg-[#0d0f12] border border-line overflow-hidden"
+    >
       <div
         class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-filament-deep to-filament shadow-[0_0_16px_rgba(255,178,92,.5)]"
         :style="{ height: pct + '%' }"

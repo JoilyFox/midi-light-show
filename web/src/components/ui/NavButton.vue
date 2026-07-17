@@ -4,7 +4,12 @@ import { cn } from '@/lib/cn';
 import Icon from './Icon.vue';
 
 // A left-rail navigation item (icon + tiny label).
-const props = defineProps<{ icon: FunctionalComponent; label: string; active?: boolean; class?: string }>();
+const props = defineProps<{
+  icon: FunctionalComponent;
+  label: string;
+  active?: boolean;
+  class?: string;
+}>();
 const classes = computed(() =>
   cn(
     'w-12 h-12 flex flex-col items-center justify-center gap-0.5 rounded-[11px] bg-transparent border-0 cursor-pointer transition-colors text-[9px] tracking-wide',

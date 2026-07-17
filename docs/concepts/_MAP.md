@@ -33,6 +33,7 @@ Entry point for the concept knowledge base. Start at [[architecture-overview]], 
 ## 05 — UI · `concepts/05-ui/`
 - [[frontend-stack]] ✅ — Vue 3 + Vite SPA, Tailwind v4, tailwind-variants
 - [[component-library-pattern]] ✅ — variants via props, tokens as one source of truth
+- [[console-app-structure]] 🟡 — shell + hash router + reactive store + typed API client
 - [[live-monitor-sse]] ⭕ — streaming MIDI events into the UI
 
 ## 06 — Operations · `concepts/06-operations/`

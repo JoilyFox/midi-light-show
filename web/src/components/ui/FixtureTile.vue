@@ -30,7 +30,9 @@ const styleVars = computed(() => ({ '--c': props.color, '--b': String(level.valu
     :style="styleVars"
   >
     <div class="flex items-center justify-between">
-      <span class="font-mono text-[22px] font-semibold tabular-nums leading-none">{{ number }}</span>
+      <span class="font-mono text-[22px] font-semibold tabular-nums leading-none">{{
+        number
+      }}</span>
       <StatusDot :state="online === false ? 'offline' : 'online'" />
     </div>
     <div class="bulb" aria-hidden="true" />
@@ -91,7 +93,12 @@ const styleVars = computed(() => ({ '--c': props.color, '--b': String(level.valu
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 33%, #fff 0%, var(--c) 55%, color-mix(in srgb, var(--c) 62%, #000) 100%);
+  background: radial-gradient(
+    circle at 38% 33%,
+    #fff 0%,
+    var(--c) 55%,
+    color-mix(in srgb, var(--c) 62%, #000) 100%
+  );
   box-shadow:
     0 0 calc(5px + var(--b) * 30px) color-mix(in srgb, var(--c) 85%, transparent),
     inset 0 -3px 6px rgba(0, 0, 0, 0.35),

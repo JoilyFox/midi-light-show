@@ -18,6 +18,8 @@ const classes = computed(() =>
 <template>
   <span :class="classes">
     <slot />
-    <span v-if="count != null" class="font-mono text-[11px] opacity-60 tabular-nums">{{ count }}</span>
+    <span v-if="count != null" class="font-mono text-[11px] opacity-60 tabular-nums">{{
+      count
+    }}</span>
   </span>
 </template>

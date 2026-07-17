@@ -20,7 +20,11 @@ const chip = tv({
 });
 
 type ChipVariants = VariantProps<typeof chip>;
-const props = defineProps<{ tone?: ChipVariants['tone']; size?: ChipVariants['size']; class?: string }>();
+const props = defineProps<{
+  tone?: ChipVariants['tone'];
+  size?: ChipVariants['size'];
+  class?: string;
+}>();
 const classes = computed(() => cn(chip({ tone: props.tone, size: props.size }), props.class));
 </script>
 
